@@ -171,11 +171,36 @@ Because this device also serves the window server, contention is a likely
 contributor (inference); a run with displays on the Duo side would
 disentangle silicon vs. contention.
 
+### Addendum (same day): hive peer sweep extended past 64 MiB
+
+Follow-up run on one hive pair (dev3↔dev4, blit, Release build):
+`tools/.build/release/if-bench --device-a 3 --device-b 4 --mode peer
+--path blit --min-size 16777216 --max-size 268435456 --json`
+(raw: `raw/2026-09-11-matrix-peer3-4-extended.json`):
+
+| Buffer/hop | 2-hop A→B (GB/s) | 2-hop B→A | write hop | read hop |
+|---|---|---|---|---|
+| 16 MiB | 8.24 | 8.24 | 21–22 | 72–83 |
+| 32 MiB | 8.72 | 8.66 | 23–25 | 86–98 |
+| 64 MiB | 8.95 | 8.88 | 25–26 | 103–106 |
+| 128 MiB | 9.07 | 9.00 | 25–27 | 99–102 |
+| 256 MiB | 9.12 | 9.08 | 25–27 | 100–106 |
+
+The 2-hop chain **saturates at ≈ 9.1 GB/s around 128–256 MiB** (increments
+per doubling: 0.47, 0.23, 0.12, 0.05 GB/s). Because a 256 MiB working set
+exceeds the ~128 MB Infinity Cache yet the rate holds (rather than drops),
+the staging chain is not cache-bound at saturation — the ceiling is the
+write hop plus per-hop commit/wait. ≈ 9.1 GB/s is therefore an honest
+route ceiling, not a cache artifact. (Required fix: `Staging` sizes its
+IOSurface within the 16 384 px texture limit; regions beyond 256 MiB are
+now skipped instead of asserting.)
+
 ## Raw data
 
-23 JSON captures under [`raw/`](raw/), prefix `2026-09-11-matrix-`:
+24 JSON captures under [`raw/`](raw/), prefix `2026-09-11-matrix-`:
 `gpu-probe`, `devices`, `if-bench-dev{0..4}`,
-`if-bench-peer{A}-{B}` (all 10 pairs), `mtl-bench-dev{0..4}`.
+`if-bench-peer{A}-{B}` (all 10 pairs), `mtl-bench-dev{0..4}`,
+plus `if-bench-peer3-4-extended.json`.
 Progress log: `build/results/run.progress.log` (not archived).
 
 ## Conclusions

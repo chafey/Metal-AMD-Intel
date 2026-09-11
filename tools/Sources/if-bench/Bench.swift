@@ -188,7 +188,11 @@ final class Staging {
     var views: [Int: MTLTexture] = [:]
 
     init?(size: Int) {
-        let width = min(max(size, 4096), 8192)
+        // Keep both texture sides within the 16 384 px 2D-texture limit
+        // (largest supportable region: 16 384 × 16 384 = 256 MiB).
+        var width = min(max(size, 4096), 8192)
+        while (size + width - 1) / width > 16_384, width < 16_384 { width *= 2 }
+        guard (size + width - 1) / width <= 16_384 else { return nil }
         let dict: [CFString: Any] = [
             kIOSurfaceWidth: width,
             kIOSurfaceHeight: (size + width - 1) / width,
@@ -199,6 +203,8 @@ final class Staging {
         self.surface = surface
         self.bytesPerRow = IOSurfaceGetBytesPerRow(surface)
         self.rows = (size + self.bytesPerRow - 1) / self.bytesPerRow
+        // The bytes-per-row the IOSurface picked must also fit the texture view.
+        guard self.bytesPerRow <= 16_384, self.rows <= 16_384 else { return nil }
     }
 
     var stride: Int { bytesPerRow * rows }
@@ -206,6 +212,7 @@ final class Staging {
 
     func texture(on ctx: DeviceCtx) -> MTLTexture? {
         if let existing = views[ctx.index] { return existing }
+        guard bytesPerRow <= 16_384, rows <= 16_384 else { return nil }
         let desc = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: .r8Unorm, width: bytesPerRow, height: rows, mipmapped: false)
         desc.usage = [.shaderRead, .shaderWrite]
