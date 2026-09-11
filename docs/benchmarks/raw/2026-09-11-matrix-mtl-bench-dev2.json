@@ -1,0 +1,18 @@
+{
+  "tool": "mtl-bench",
+  "version": "1",
+  "machine": {"model": "MacPro7,1", "macOS": "26.6.2", "osBuild": "25G83"},
+  "device": "AMD Radeon PRO W6800X Duo",
+  "results": [
+    {"benchmark": "commandBuffer.alloc", "iterations": 20000, "nsPerOp": 2085.9},
+    {"benchmark": "commandBuffer.commit.empty", "iterations": 5000, "nsPerOp": 10262.4, "note": "pipelined; includes GPU retirement"},
+    {"benchmark": "blitEncoder.create.end", "iterations": 20000, "nsPerOp": 3240.1, "note": "includes CB allocation; subtract commandBuffer.alloc"},
+    {"benchmark": "blit.copy.64B", "iterations": 2000, "nsPerOp": 14128.5, "bytesPerSecond": 4529851, "note": "pipelined commits, one copy each"},
+    {"benchmark": "blit.copy.1024B", "iterations": 2000, "nsPerOp": 10507.5, "bytesPerSecond": 97454199, "note": "pipelined commits, one copy each"},
+    {"benchmark": "blit.copy.65536B", "iterations": 2000, "nsPerOp": 11358.5, "bytesPerSecond": 5769775939, "note": "pipelined commits, one copy each"},
+    {"benchmark": "blit.copy.1048576B", "iterations": 2000, "nsPerOp": 11852.0, "bytesPerSecond": 88472494094, "note": "pipelined commits, one copy each"},
+    {"benchmark": "renderPass.setup.clear64x64", "iterations": 5000, "nsPerOp": 13951.8, "note": "encoder create+end, no draws, no commits"},
+    {"benchmark": "kernel.dispatch.encode", "iterations": 100000, "nsPerOp": 867.7, "note": "1x1 dispatches encoded into one CB"},
+    {"benchmark": "kernel.dispatch.commit", "iterations": 5000, "nsPerOp": 24775.6, "note": "pipelined commits, one 1x1 dispatch each"}
+  ]
+}

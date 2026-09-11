@@ -1,0 +1,449 @@
+{
+  "devices" : [
+    {
+      "correlation" : {
+        "method" : "registryEntryID",
+        "node" : "AMDRadeonX6000_AMDNavi21GraphicsAccelerator",
+        "pciRegistryEntryID" : "0x0000000100000747",
+        "pciService" : "display"
+      },
+      "featureSets" : [
+        "macOS_GPUFamily1_v1",
+        "macOS_GPUFamily1_v2",
+        "macOS_GPUFamily1_v3",
+        "macOS_GPUFamily1_v4",
+        "macOS_GPUFamily2_v1"
+      ],
+      "gpuFamilies" : [
+        "mac1",
+        "mac2",
+        "common1",
+        "common2",
+        "common3",
+        "metal3"
+      ],
+      "isHeadless" : false,
+      "linkProperties" : [
+        {
+          "key" : "IOPCIExpressLinkCapabilities",
+          "node" : "display",
+          "value" : "4197636"
+        },
+        {
+          "key" : "IOPCIExpressLinkCapabilities2",
+          "node" : "display",
+          "value" : "25165854"
+        },
+        {
+          "key" : "IOPCIExpressLinkStatus",
+          "node" : "display",
+          "value" : "12548"
+        }
+      ],
+      "maxFeatureSet" : "macOS_GPUFamily2_v1",
+      "maxThreadsPerThreadgroup" : {
+        "depth" : 1024,
+        "height" : 1024,
+        "width" : 1024
+      },
+      "name" : "AMD Radeon RX 6900 XT",
+      "pci" : {
+        "class-code" : "0x00030000",
+        "device-id" : "0x000073bf",
+        "IOPCIExpressLinkStatus" : "0x3104",
+        "negotiatedLink" : "16 GT\/s x16",
+        "revision-id" : "0x000000c0",
+        "subsystem-id" : "0x00003952",
+        "subsystem-vendor-id" : "0x00001462",
+        "vendor-id" : "0x00001002"
+      },
+      "recommendedMaxWorkingSetSize" : 17163091968,
+      "registryID" : 4294970614,
+      "registryIDHex" : "0x0000000100000cf6"
+    },
+    {
+      "correlation" : {
+        "method" : "registryEntryID",
+        "node" : "AMDRadeonX6000_AMDNavi21GraphicsAccelerator",
+        "pciRegistryEntryID" : "0x00000001000007b9",
+        "pciService" : "GFX0"
+      },
+      "featureSets" : [
+        "macOS_GPUFamily1_v1",
+        "macOS_GPUFamily1_v2",
+        "macOS_GPUFamily1_v3",
+        "macOS_GPUFamily1_v4",
+        "macOS_GPUFamily2_v1"
+      ],
+      "gpuFamilies" : [
+        "mac1",
+        "mac2",
+        "common1",
+        "common2",
+        "common3",
+        "metal3"
+      ],
+      "isHeadless" : false,
+      "linkProperties" : [
+        {
+          "key" : "IOPCIExpressLinkCapabilities",
+          "node" : "GFX0",
+          "value" : "4459780"
+        },
+        {
+          "key" : "IOPCIExpressLinkCapabilities2",
+          "node" : "GFX0",
+          "value" : "25165854"
+        },
+        {
+          "key" : "IOPCIExpressLinkStatus",
+          "node" : "GFX0",
+          "value" : "28932"
+        },
+        {
+          "key" : "InfinityFabricLinks",
+          "node" : "GFX0",
+          "value" : "1"
+        }
+      ],
+      "maxFeatureSet" : "macOS_GPUFamily2_v1",
+      "maxThreadsPerThreadgroup" : {
+        "depth" : 1024,
+        "height" : 1024,
+        "width" : 1024
+      },
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "pci" : {
+        "class-code" : "0x00030000",
+        "device-id" : "0x000073ab",
+        "IOPCIExpressLinkStatus" : "0x7104",
+        "negotiatedLink" : "16 GT\/s x16",
+        "revision-id" : "0x00000000",
+        "subsystem-id" : "0x00000222",
+        "subsystem-vendor-id" : "0x0000106b",
+        "vendor-id" : "0x00001002"
+      },
+      "recommendedMaxWorkingSetSize" : 34342961152,
+      "registryID" : 4294970650,
+      "registryIDHex" : "0x0000000100000d1a",
+      "xgmi" : [
+        {
+          "key" : "InfinityFabricLinks",
+          "node" : "GFX0",
+          "value" : "1"
+        },
+        {
+          "key" : "XGMI_Enabled",
+          "node" : "GFX0",
+          "value" : "1"
+        },
+        {
+          "key" : "XGMI_HiveSize",
+          "node" : "GFX0",
+          "value" : "4"
+        },
+        {
+          "key" : "XGMI_NodeIndex",
+          "node" : "GFX0",
+          "value" : "2"
+        }
+      ]
+    },
+    {
+      "correlation" : {
+        "method" : "registryEntryID",
+        "node" : "AMDRadeonX6000_AMDNavi21GraphicsAccelerator",
+        "pciRegistryEntryID" : "0x00000001000007b5",
+        "pciService" : "GFX0"
+      },
+      "featureSets" : [
+        "macOS_GPUFamily1_v1",
+        "macOS_GPUFamily1_v2",
+        "macOS_GPUFamily1_v3",
+        "macOS_GPUFamily1_v4",
+        "macOS_GPUFamily2_v1"
+      ],
+      "gpuFamilies" : [
+        "mac1",
+        "mac2",
+        "common1",
+        "common2",
+        "common3",
+        "metal3"
+      ],
+      "isHeadless" : false,
+      "linkProperties" : [
+        {
+          "key" : "IOPCIExpressLinkCapabilities",
+          "node" : "GFX0",
+          "value" : "4459780"
+        },
+        {
+          "key" : "IOPCIExpressLinkCapabilities2",
+          "node" : "GFX0",
+          "value" : "25165854"
+        },
+        {
+          "key" : "IOPCIExpressLinkStatus",
+          "node" : "GFX0",
+          "value" : "28932"
+        },
+        {
+          "key" : "InfinityFabricLinks",
+          "node" : "GFX0",
+          "value" : "1"
+        }
+      ],
+      "maxFeatureSet" : "macOS_GPUFamily2_v1",
+      "maxThreadsPerThreadgroup" : {
+        "depth" : 1024,
+        "height" : 1024,
+        "width" : 1024
+      },
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "pci" : {
+        "class-code" : "0x00030000",
+        "device-id" : "0x000073ab",
+        "IOPCIExpressLinkStatus" : "0x7104",
+        "negotiatedLink" : "16 GT\/s x16",
+        "revision-id" : "0x00000000",
+        "subsystem-id" : "0x00000222",
+        "subsystem-vendor-id" : "0x0000106b",
+        "vendor-id" : "0x00001002"
+      },
+      "recommendedMaxWorkingSetSize" : 34342961152,
+      "registryID" : 4294970624,
+      "registryIDHex" : "0x0000000100000d00",
+      "xgmi" : [
+        {
+          "key" : "InfinityFabricLinks",
+          "node" : "GFX0",
+          "value" : "1"
+        },
+        {
+          "key" : "XGMI_Enabled",
+          "node" : "GFX0",
+          "value" : "1"
+        },
+        {
+          "key" : "XGMI_HiveSize",
+          "node" : "GFX0",
+          "value" : "4"
+        },
+        {
+          "key" : "XGMI_NodeIndex",
+          "node" : "GFX0",
+          "value" : "3"
+        }
+      ]
+    },
+    {
+      "correlation" : {
+        "method" : "registryEntryID",
+        "node" : "AMDRadeonX6000_AMDNavi21GraphicsAccelerator",
+        "pciRegistryEntryID" : "0x00000001000006d4",
+        "pciService" : "GFX0"
+      },
+      "featureSets" : [
+        "macOS_GPUFamily1_v1",
+        "macOS_GPUFamily1_v2",
+        "macOS_GPUFamily1_v3",
+        "macOS_GPUFamily1_v4",
+        "macOS_GPUFamily2_v1"
+      ],
+      "gpuFamilies" : [
+        "mac1",
+        "mac2",
+        "common1",
+        "common2",
+        "common3",
+        "metal3"
+      ],
+      "isHeadless" : false,
+      "linkProperties" : [
+        {
+          "key" : "IOPCIExpressLinkCapabilities",
+          "node" : "GFX0",
+          "value" : "4459780"
+        },
+        {
+          "key" : "IOPCIExpressLinkCapabilities2",
+          "node" : "GFX0",
+          "value" : "25165854"
+        },
+        {
+          "key" : "IOPCIExpressLinkStatus",
+          "node" : "GFX0",
+          "value" : "28932"
+        },
+        {
+          "key" : "InfinityFabricLinks",
+          "node" : "GFX0",
+          "value" : "1"
+        }
+      ],
+      "maxFeatureSet" : "macOS_GPUFamily2_v1",
+      "maxThreadsPerThreadgroup" : {
+        "depth" : 1024,
+        "height" : 1024,
+        "width" : 1024
+      },
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "pci" : {
+        "class-code" : "0x00030000",
+        "device-id" : "0x000073ab",
+        "IOPCIExpressLinkStatus" : "0x7104",
+        "negotiatedLink" : "16 GT\/s x16",
+        "revision-id" : "0x00000000",
+        "subsystem-id" : "0x00000222",
+        "subsystem-vendor-id" : "0x0000106b",
+        "vendor-id" : "0x00001002"
+      },
+      "recommendedMaxWorkingSetSize" : 34342961152,
+      "registryID" : 4294970619,
+      "registryIDHex" : "0x0000000100000cfb",
+      "xgmi" : [
+        {
+          "key" : "InfinityFabricLinks",
+          "node" : "GFX0",
+          "value" : "1"
+        },
+        {
+          "key" : "XGMI_Enabled",
+          "node" : "GFX0",
+          "value" : "1"
+        },
+        {
+          "key" : "XGMI_HiveSize",
+          "node" : "GFX0",
+          "value" : "4"
+        },
+        {
+          "key" : "XGMI_NodeIndex",
+          "node" : "GFX0",
+          "value" : "1"
+        }
+      ]
+    },
+    {
+      "correlation" : {
+        "method" : "registryEntryID",
+        "node" : "AMDRadeonX6000_AMDNavi21GraphicsAccelerator",
+        "pciRegistryEntryID" : "0x00000001000006d8",
+        "pciService" : "GFX0"
+      },
+      "featureSets" : [
+        "macOS_GPUFamily1_v1",
+        "macOS_GPUFamily1_v2",
+        "macOS_GPUFamily1_v3",
+        "macOS_GPUFamily1_v4",
+        "macOS_GPUFamily2_v1"
+      ],
+      "gpuFamilies" : [
+        "mac1",
+        "mac2",
+        "common1",
+        "common2",
+        "common3",
+        "metal3"
+      ],
+      "isHeadless" : false,
+      "linkProperties" : [
+        {
+          "key" : "IOPCIExpressLinkCapabilities",
+          "node" : "GFX0",
+          "value" : "4459780"
+        },
+        {
+          "key" : "IOPCIExpressLinkCapabilities2",
+          "node" : "GFX0",
+          "value" : "25165854"
+        },
+        {
+          "key" : "IOPCIExpressLinkStatus",
+          "node" : "GFX0",
+          "value" : "28932"
+        },
+        {
+          "key" : "InfinityFabricLinks",
+          "node" : "GFX0",
+          "value" : "1"
+        }
+      ],
+      "maxFeatureSet" : "macOS_GPUFamily2_v1",
+      "maxThreadsPerThreadgroup" : {
+        "depth" : 1024,
+        "height" : 1024,
+        "width" : 1024
+      },
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "pci" : {
+        "class-code" : "0x00030000",
+        "device-id" : "0x000073ab",
+        "IOPCIExpressLinkStatus" : "0x7104",
+        "negotiatedLink" : "16 GT\/s x16",
+        "revision-id" : "0x00000000",
+        "subsystem-id" : "0x00000222",
+        "subsystem-vendor-id" : "0x0000106b",
+        "vendor-id" : "0x00001002"
+      },
+      "recommendedMaxWorkingSetSize" : 34342961152,
+      "registryID" : 4294970571,
+      "registryIDHex" : "0x0000000100000ccb",
+      "xgmi" : [
+        {
+          "key" : "InfinityFabricLinks",
+          "node" : "GFX0",
+          "value" : "1"
+        },
+        {
+          "key" : "XGMI_Enabled",
+          "node" : "GFX0",
+          "value" : "1"
+        },
+        {
+          "key" : "XGMI_HiveSize",
+          "node" : "GFX0",
+          "value" : "4"
+        },
+        {
+          "key" : "XGMI_NodeIndex",
+          "node" : "GFX0",
+          "value" : "0"
+        }
+      ]
+    }
+  ],
+  "machine" : {
+    "amdDrivers" : {
+      "AMDFramebuffer.kext" : "7.0.1",
+      "AMDRadeonServiceManager.kext" : "7.0.1",
+      "AMDRadeonVADriver.bundle" : "7.0.1",
+      "AMDRadeonVADriver2.bundle" : "7.0.1",
+      "AMDRadeonX4000.kext" : "7.0.1",
+      "AMDRadeonX4000GLDriver.bundle" : "7.0.1",
+      "AMDRadeonX4000HWServices.kext" : "7.0.1",
+      "AMDRadeonX5000.kext" : "7.0.1",
+      "AMDRadeonX5000GLDriver.bundle" : "7.0.1",
+      "AMDRadeonX5000HWServices.kext" : "7.0.1",
+      "AMDRadeonX5000MTLDriver.bundle" : "7.0.1",
+      "AMDRadeonX5000Shared.bundle" : "0.0.0",
+      "AMDRadeonX6000.kext" : "7.0.1",
+      "AMDRadeonX6000Framebuffer.kext" : "7.0.1",
+      "AMDRadeonX6000GLDriver.bundle" : "7.0.1",
+      "AMDRadeonX6000HWServices.kext" : "7.0.1",
+      "AMDRadeonX6000MTLDriver.bundle" : "7.0.1",
+      "AMDRadeonX6000Shared.bundle" : "0.0.0",
+      "IOAcceleratorFamily2.kext" : "487.4.3"
+    },
+    "arch" : "x86_64",
+    "cpu" : "Intel(R) Xeon(R) W-3245 CPU @ 3.20GHz",
+    "cpuCores" : 32,
+    "macOS" : "26.6.2",
+    "memoryBytes" : 206158430208,
+    "model" : "MacPro7,1",
+    "osBuild" : "25G83"
+  },
+  "tool" : "gpu-probe",
+  "version" : "2"
+}

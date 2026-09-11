@@ -27,12 +27,14 @@ func printUsage() {
 
         Options:
           --device-a N      index into MTLCopyAllDevices() (default 0)
-          --device-b N      second device index (default 1; default pair is
-                            checked for cross-device coherence first)
+          --device-b N      second device index (default: none). Required for
+                            peer and concurrent modes; when set, bw/latency/
+                            host sweeps cover both devices.
           --min-size BYTES  sweep start (default 4096)
           --max-size BYTES  sweep end (default 67108864 = 64 MiB)
           --path blit|kernel|both    copy implementation under test (default both)
-          --mode bw|latency|peer|host|concurrent|all  (default all)
+          --mode M[,M...]   comma-separated from bw|latency|peer|host|concurrent
+                            (or 'all'; default all)
           --list-devices    print the device table and exit
           --json            machine-readable output
           -h, --help
@@ -41,7 +43,7 @@ func printUsage() {
 }
 
 var opts = (
-    deviceA: 0, deviceB: 1,
+    deviceA: 0, deviceB: -1,
     minSize: 4096, maxSize: 67_108_864,
     paths: Set(["blit", "kernel"]),
     modes: Set(["bw", "latency", "peer", "host", "concurrent"]),
@@ -57,6 +59,9 @@ while i < arguments.count {
     }
     switch arguments[i] {
     case "-h", "--help": printUsage(); exit(0)
+    // SwiftPM forwards "--" verbatim to the executable; there are no
+    // positional arguments, so the end-of-options marker is a no-op.
+    case "--": break
     case "--json": opts.json = true
     case "--list-devices": opts.list = true
     case "--device-a": if let v = next() { opts.deviceA = v }
@@ -71,8 +76,9 @@ while i < arguments.count {
     case "--mode":
         i += 1
         guard i < arguments.count else { break }
-        if arguments[i] == "all" { opts.modes = ["bw", "latency", "peer", "host", "concurrent"] }
-        else { opts.modes = [arguments[i]] }
+        let wanted = arguments[i].split(separator: ",").map(String.init)
+        if wanted.contains("all") { opts.modes = ["bw", "latency", "peer", "host", "concurrent"] }
+        else { opts.modes = Set(wanted) }
     default:
         FileHandle.standardError.write(Data("if-bench: unknown argument \(arguments[i])\n".utf8))
         printUsage()
@@ -148,7 +154,7 @@ if metalDevices.isEmpty {
     emitReport(devices: [], results: [],
                notes: ["no Metal devices visible in this session; nothing to measure"])
 }
-guard opts.deviceA != opts.deviceB else {
+guard metalDevices.isEmpty || opts.deviceB < 0 || opts.deviceA != opts.deviceB else {
     emitReport(devices: metalDevices.enumerated().map { deviceSummary($0.element, index: $0.offset) },
                results: [], notes: ["--device-a equals --device-b: peer modes need two devices"])
 }
@@ -208,21 +214,24 @@ if opts.list {
     emitReport(devices: deviceInfos, results: [], notes: notes)
 }
 
-guard opts.deviceA < metalDevices.count, opts.deviceB < metalDevices.count,
-      opts.deviceA >= 0, opts.deviceB >= 0
+guard opts.deviceA < metalDevices.count, opts.deviceA >= 0,
+      opts.deviceB < metalDevices.count  // deviceB == -1 (unset) passes here
 else {
     emitReport(devices: deviceInfos, results: [],
                notes: ["requested device indices out of range (\(metalDevices.count) devices)"])
 }
 
 let ctxA = DeviceCtx(index: opts.deviceA, device: metalDevices[opts.deviceA])
-let ctxB = DeviceCtx(index: opts.deviceB, device: metalDevices[opts.deviceB])
-if ctxA.copyPipeline == nil || ctxB.copyPipeline == nil {
+var ctxB: DeviceCtx? = nil
+if opts.deviceB >= 0 {
+    ctxB = DeviceCtx(index: opts.deviceB, device: metalDevices[opts.deviceB])
+}
+let ctxs: [DeviceCtx] = [ctxA] + (ctxB.map { [$0] } ?? [])
+if ctxs.contains(where: { $0.copyPipeline == nil }) {
     notes.append("kernel copy path unavailable (compute pipeline compile failed); "
         + "kernel rows skipped")
 }
-let workingSet = min(metalDevices[opts.deviceA].recommendedMaxWorkingSetSize,
-                     metalDevices[opts.deviceB].recommendedMaxWorkingSetSize)
+let workingSet = ctxs.map { metalDevices[$0.index].recommendedMaxWorkingSetSize }.min()!
 let maxSize = min(opts.maxSize, Int(workingSet / 2))
 if maxSize < opts.maxSize {
     notes.append("sweep capped at \(maxSize) bytes (half of recommendedMaxWorkingSetSize)")
@@ -264,8 +273,8 @@ let labelB = "dev\(opts.deviceB)"
 // MARK: - Local (baseline)
 
 if opts.modes.contains("bw") {
-    for ctx in [ctxA, ctxB] {
-        let label = ctx.index == opts.deviceA ? labelA : labelB
+    for ctx in ctxs {
+        let label = "dev\(ctx.index)"
         for s in sizes {
             progress("bandwidth \(label) local \(s) bytes")
             if opts.paths.contains("blit"),
@@ -281,8 +290,8 @@ if opts.modes.contains("bw") {
 }
 
 if opts.modes.contains("latency") {
-    for ctx in [ctxA, ctxB] {
-        let label = ctx.index == opts.deviceA ? labelA : labelB
+    for ctx in ctxs {
+        let label = "dev\(ctx.index)"
         for s in sizes where s <= 4_194_304 {  // ping-pong sweeps stay <= 4 MiB
             progress("latency \(label) local \(s) bytes")
             if let t = localLatency(ctx, size: s, roundTrips: 200) {
@@ -292,13 +301,23 @@ if opts.modes.contains("latency") {
     }
 }
 
+// peer and concurrent need a second device; note-and-skip if --device-b unset.
+if opts.modes.contains("peer"), ctxB == nil {
+    notes.append("peer mode requires --device-b: peer rows skipped")
+    opts.modes.remove("peer")
+}
+if opts.modes.contains("concurrent"), ctxB == nil {
+    notes.append("concurrent mode requires --device-b: concurrent rows skipped")
+    opts.modes.remove("concurrent")
+}
+
 // MARK: - Peer (cross-device via IOSurface staging)
 
-if opts.modes.contains("peer") {
+if opts.modes.contains("peer"), let b = ctxB {
     progress("peer coherence check")
     var coherent = false
     if let gate = Staging(size: 65_536) {
-        coherent = peerCoherenceCheck(ctxA, ctxB, staging: gate)
+        coherent = peerCoherenceCheck(ctxA, b, staging: gate)
     }
     if !coherent {
         notes.append("cross-device coherence check FAILED: peer rows omitted; "
@@ -315,7 +334,7 @@ if opts.modes.contains("peer") {
             guard let staging = Staging(size: s) else { continue }
             let hopBytes = min(s, staging.stride)  // stride rounds s up to bpr rows
             // Isolated hops, both directions, both devices.
-            for (ctx, label) in [(ctxA, labelA), (ctxB, labelB)] {
+            for (ctx, label) in [(ctxA, labelA), (b, labelB)] {
                 if let t = stagingHopBandwidth(ctx, staging: staging, write: true) {
                     bandwidthRow("\(label)->staging", "blit", bytes: hopBytes, seconds: t)
                 }
@@ -324,15 +343,15 @@ if opts.modes.contains("peer") {
                 }
             }
             // End-to-end A->B and B->A (two hops each).
-            if let t = peerBandwidth(ctxA, ctxB, staging: staging) {
+            if let t = peerBandwidth(ctxA, b, staging: staging) {
                 bandwidthRow("\(labelA)->\(labelB) (2 hops)", "blit", bytes: 2 * hopBytes, seconds: t)
             }
-            if let t = peerBandwidth(ctxB, ctxA, staging: staging) {
+            if let t = peerBandwidth(b, ctxA, staging: staging) {
                 bandwidthRow("\(labelB)->\(labelA) (2 hops)", "blit", bytes: 2 * hopBytes, seconds: t)
             }
             // Dependent round-trip latency (4 hops/repetition), small sizes only.
             if s <= 1_048_576,
-               let t = peerRoundTripLatency(ctxA, ctxB, staging: staging, roundTrips: 100) {
+               let t = peerRoundTripLatency(ctxA, b, staging: staging, roundTrips: 100) {
                 latencyRow("\(labelA)<->\(labelB)", bytes: s, secondsPerHop: t)
             }
         }
@@ -345,8 +364,8 @@ if opts.modes.contains("host") {
     notes.append("host directions use storageModeShared buffers: on Intel "
         + "these are host RAM, so 'totalMinusCPU' attributes the non-CPU "
         + "time to GPU access + flush over PCIe (approximation)")
-    for ctx in [ctxA, ctxB] {
-        let label = ctx.index == opts.deviceA ? labelA : labelB
+    for ctx in ctxs {
+        let label = "dev\(ctx.index)"
         for s in sizes where s <= 268_435_456 {  // host sweep capped at 256 MiB
             progress("host sweep \(label) \(s) bytes")
             if let (total, cpu) = hostUpBandwidth(ctx, size: s) {
@@ -365,12 +384,12 @@ if opts.modes.contains("host") {
 
 // MARK: - Concurrent load (co-scheduling repro)
 
-if opts.modes.contains("concurrent") {
+if opts.modes.contains("concurrent"), let b = ctxB {
     let s = min(33_554_432, maxSize)  // 32 MiB working point
     progress("concurrent-load repro at \(s) bytes")
     let path: String = ctxA.copyPipeline != nil && opts.paths.contains("kernel") ? "kernel" : "blit"
     if let soloA = localBandwidth(ctxA, size: s, useKernel: path == "kernel").map({ Double(s) * Double(iterations(for: s)) / $0 }),
-       let soloB = localBandwidth(ctxB, size: s, useKernel: path == "kernel").map({ Double(s) * Double(iterations(for: s)) / $0 }) {
+       let soloB = localBandwidth(b, size: s, useKernel: path == "kernel").map({ Double(s) * Double(iterations(for: s)) / $0 }) {
         results.append([
             "kind": "bandwidth", "direction": "\(labelA) solo", "copyPath": path,
             "sizeBytes": s, "gbytesPerSecond": ((soloA / 1e9) * 100).rounded() / 100,
@@ -391,7 +410,7 @@ if opts.modes.contains("concurrent") {
                 group.leave()
             }
             DispatchQueue.global().async {
-                _ = localBandwidth(ctxB, size: s, useKernel: path == "kernel")
+                _ = localBandwidth(b, size: s, useKernel: path == "kernel")
                 group.leave()
             }
             group.wait()

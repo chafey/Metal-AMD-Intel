@@ -14,6 +14,7 @@ C++ (Objective-C++) microbenchmarks for Metal API overhead on MPX GPUs:
 make ccpp
 build/tools/mtl-bench/mtl-bench          # human summary
 build/tools/mtl-bench/mtl-bench --json   # JSON on stdout (progress on stderr)
+build/tools/mtl-bench/mtl-bench --device 3 --json   # MTLCopyAllDevices()[3]
 ```
 
 ## Note on Metal-cpp

@@ -56,6 +56,24 @@ symptom, affected configuration, workaround, and OS/driver version observed.
 - **Status:** workaround-only; root cause (driver retention vs pool timing)
   not established
 
+### IOSurface staging route across the xGMI hive boundary collapses
+- **Affects:** W6800X Duo (xGMI hive of 4) + RX 6900 XT (plain PCIe),
+  macOS 26.6.2, IOAcceleratorFamily2 487.4.3 / AMDRadeonX6000 7.0.1
+- **Symptom:** cross-device IOSurface staging transfers between an
+  xGMI-hive GPU and a non-hive GPU reach only 1.6–3.7 GB/s end-to-end
+  (vs 8.6–8.9 GB/s between hive members) even though each single hop
+  measures normally in isolation; direction-asymmetric (to the non-hive
+  card is slower) and dependent-chain latency is unstable (343–5 744
+  µs/hop vs ~120–160 µs/hop within the hive)
+- **Repro:** `swift run --package-path tools if-bench -- --device-a <hive-die>
+  --device-b <non-hive-gpu> --mode peer --json` (see
+  `docs/benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md`)
+- **Workaround:** keep IOSurface-based cross-device sharing inside one
+  xGMI hive; for hive↔non-hive movement budget PCIe-class bandwidth and
+  batch heavily, or stage via host memory explicitly
+- **Status:** observed, mechanism not established (staging page placement
+  is not observable via the API)
+
 ### (placeholder) Duo partition co-scheduling stalls
 - **Affects:** W6800X Duo, macOS 14.x — TODO: confirm
 - **Symptom:** TODO: describe observed stalls when both partitions run heavy

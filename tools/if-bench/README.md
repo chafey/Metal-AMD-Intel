@@ -25,7 +25,11 @@ Bandwidth is pipelined (many copies per command buffer); latency uses
 dependent copy chains. Sizes sweep 4 KiB → 64 MiB by default (`--min-size`
 / `--max-size`; the sweep auto-caps at half of
 `recommendedMaxWorkingSetSize`). `--path blit|kernel|both`,
-`--mode bw|latency|peer|host|concurrent|all`.
+`--mode bw|latency|peer|host|concurrent|all` (comma-separated list allowed).
+`--device-b` is optional: without it, `bw`/`latency`/`host` run on
+`--device-a` only, while `peer`/`concurrent` are skipped with a note.
+`scripts/run-all-benchmarks.sh` uses this to sweep every device
+individually, then every device pair for peer.
 
 ## Interpreting peer numbers
 

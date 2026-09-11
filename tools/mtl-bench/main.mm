@@ -15,6 +15,7 @@
 #include <sys/sysctl.h>
 #include <ctime>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -77,14 +78,17 @@ static void addRow(const std::string &name, long iters, double nsPerOp,
 int main(int argc, const char **argv) {
     @autoreleasepool {
         bool asJSON = false;
+        int deviceIndex = 0;
         for (int i = 1; i < argc; i++) {
             std::string arg = argv[i];
             if (arg == "--json") { asJSON = true; quietRows = true; }
+            if (arg == "--device" && i + 1 < argc) { deviceIndex = std::atoi(argv[++i]); }
             if (arg == "--help" || arg == "-h") {
                 std::printf(
-                    "usage: mtl-bench [--json]\n\n"
+                    "usage: mtl-bench [--json] [--device N]\n\n"
                     "Metal API-overhead microbenchmarks (command buffer,\n"
                     "encoder, small-blit, render-pass setup, dispatch).\n"
+                    "--device N selects MTLCopyAllDevices()[N] (default 0).\n"
                     "Requires a Metal device; emits JSON on --json.\n");
                 return 0;
             }
@@ -98,7 +102,9 @@ int main(int argc, const char **argv) {
         std::string build = sysctlString("kern.osversion");
         std::string model = sysctlString("hw.model");
 
-        id<MTLDevice> device = MTLCopyAllDevices().firstObject;
+        NSArray<id<MTLDevice>> *allDevices = MTLCopyAllDevices();
+        id<MTLDevice> device = (deviceIndex >= 0 && deviceIndex < (int)allDevices.count)
+                                   ? allDevices[(NSUInteger)deviceIndex] : nil;
         if (device == nil) {
             if (asJSON) {
                 std::printf("{\"tool\":\"mtl-bench\",\"version\":\"1\","

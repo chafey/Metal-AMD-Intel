@@ -1,5 +1,7 @@
 # Metal-AMD-Intel
 
+NOTE: This repository is under development.  Most of the content here is AI generated and has not been reviewed for correctness yet.
+
 Documentation, tools, and examples for using **AMD MPX graphics cards under Metal on Intel Macs**, with particular focus on the **Infinity Fabric Link jumper** (the connector joining the two GPUs on *one* module — Vega II Duo, W6800X Duo) and the **Infinity Fabric Link bridge** (the connector joining GPUs across *two* cards — e.g. W6800X Duo, W6900X, Vega II pairs).
 
 > **Terminology (per Apple):** an **Infinity Fabric Link jumper** connects the
@@ -84,7 +86,9 @@ swift run --package-path tools if-bench -- --list-devices
 make ccpp && build/tools/iokit-dump/iokit-dump --name AMDRadeonX6000
 swift run --package-path examples/swift device-basics
 
-# Run all benchmarks and drop JSON results in build/
+# Run all benchmarks on every visible GPU; JSON results land in
+# build/results/ (one file per device, one per device pair for peer).
+# PEER=0 skips the pairwise peer matrix (the longest part).
 ./scripts/run-all-benchmarks.sh
 ```
 
