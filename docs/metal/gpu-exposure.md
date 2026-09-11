@@ -5,27 +5,45 @@ Duo-card partitions on MPX hosts.
 
 ## Device enumeration
 
-Observed on Mac Pro (2019), macOS 26.6.2 (25G83), 2026-09-11 (`gpu-probe` scaffold):
-**four** `MTLDevice`s are enumerated, all named `"AMD Radeon PRO W6800X Duo"`,
-with distinct `registryID`s that exceed `UInt32.max` (e.g. 4294970790 ⇒
-`0x1_0000_0DA6`) — so the SDK exposes `registryID` as `UInt64` and it must not
-be narrowed to 32 bits.
+Captured on Mac Pro (2019), macOS 26.6.2 (25G83), 2× Radeon Pro W6800X Duo,
+2026-09-11, with `tools/gpu-probe -- --json`:
 
-Correlation (partial, from `ioreg`): the four devices are the four partitions
-of the 2× W6800X Duo system's xGMI hive — two nodes under each physical card.
+- **Four** `MTLDevice`s are enumerated, all named `"AMD Radeon PRO W6800X
+  Duo"` — one per GPU die, not one per card.
+- `registryID` exceeds `UInt32.max` (e.g. `0x1_0000_0DA6`): the SDK exposes
+  it as `UInt64` and it must not be narrowed to 32 bits.
+- **Metal ↔ IOKit correlation:** `MTLDevice.registryID` equals the IOKit
+  registry-entry id (`IORegistryEntryGetRegistryEntryID`) of the device's
+  accelerator service node (`AMDRadeonX6000_AMDNavi21GraphicsAccelerator`).
+  Do **not** look for an "IORegistryID" property — it does not exist. The
+  former `MTLDevice.location`/`entryPoint` APIs were removed in the macOS 26
+  SDK, so `registryID` is the correlation key.
+- Each of the four Metal devices correlates 1:1 with its own `IOPCIDevice`
+  function named `GFX0` (one PCI function per die; two per Duo card). PCI
+  ids per function: vendor `0x1002`, device `0x73ab`, subsystem
+  `0x106b:0x0222`, class `0x030000`. PCIe link negotiates 16 GT/s (Gen 4)
+  x16 (`IOPCIExpressLinkStatus = 0x7104`).
+- **xGMI hive:** each `GFX0` function reports `XGMI_Enabled=1`,
+  `InfinityFabricLinks=1`, `XGMI_HiveSize=4`, and `XGMI_NodeIndex` 0…3 —
+  one hive spanning both cards with one node per die. Node index does not
+  map monotonically to anything Metal exposes; correlate per device via
+  `registryID`.
+- Per device: `recommendedMaxWorkingSetSize = 34,342,961,152` bytes
+  (≈ 32 GiB, i.e. one die's VRAM, not the card's 64 GB).
+- Families: `mac1`, `mac2`, `common1–3`, `metal3`. Feature sets reported
+  supported: `macOS_GPUFamily1_v1–v4` and `macOS_GPUFamily2_v1` only —
+  `GPUFamily2_v5/v6` are *not* reported as supported even though the newer
+  `mac2`/`metal3` families are. Queries are done by raw value via
+  `supportsFamily:`/`supportsFeatureSet:` (`gpu-probe`), independent of SDK
+  enum availability.
 
-TODO: correlate node index ↔ `MTLDevice` (via `location`/`entryPoint` and
-IOKit parent `IOPCIDevice`s) in the full `gpu-probe` implementation
-(Phase 2).
+Still open:
 
-TODO: paste authoritative `gpu-probe` output for each configuration and
-annotate it. Questions this document must answer:
-
-- Does a W6800X Duo appear as one `MTLDevice` or two? What are the device
-  strings in each case?
-- How do the two partitions of a Duo card report `recommendedMaxWorkingSetSize`,
-  `registryID`, and `location` / `entryPoint`?
-- How do two physical cards differ in enumeration from one Duo card?
+- How do two physical cards differ in enumeration from one Duo card? (All
+  four devices here share one hive across two cards; a non-bridged pairing
+  or a single Duo card should be captured for comparison.)
+- `XGMI_NodeIndex` semantics across hive shapes (see `tools/gpu-probe/README.md`
+  TODO).
 
 ## Capability differences vs. desktop AMD cards
 

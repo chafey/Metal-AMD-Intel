@@ -32,9 +32,11 @@ The Duo cards expose **two GPU partitions on one physical module**:
 - **W6800X Duo:** two Navi 21 partitions connected by an Infinity Fabric
   Link jumper, each with its own 32 GB GDDR6.
 
-TODO: document exactly how each appears in IORegistry (one vs. two
-`IOPCIDevice`s, one vs. two `MTLDevice`s) — capture and paste real
-`gpu-probe` / `iokit-dump` output here.
+How Duo modules appear to the OS is documented in
+[../metal/gpu-exposure.md](../metal/gpu-exposure.md): a `gpu-probe` capture
+of a 2× W6800X Duo system (2026-09-11) showed one `MTLDevice` and one
+`IOPCIDevice` function (`GFX0`) per die — four each — all reporting
+`XGMI_HiveSize = 4` with `XGMI_NodeIndex` 0…3.
 
 ## Multi-card configurations
 
@@ -81,6 +83,10 @@ Open questions (capture with `iokit-dump`, measure with `if-bench`):
   Infinity Fabric Link bridge) and whether they differ
 - Bandwidth/latency of the cross-card IF hop vs intra-card hop vs PCIe
   fallback (if-bench directions 3 and 5)
+- The 2026-09-11 2× W6800X Duo `gpu-probe` capture shows a single 4-node
+  hive; confirm whether an Infinity Fabric Link bridge was fitted on that
+  machine (a jumpers-only system showing `XGMI_HiveSize = 4` would
+  contradict the hive shapes in the table above)
 - Per-slot constraints: which slot pairs the bridge supports, and per-CPU
   attachment on dual-socket parts (see [host-machines.md](host-machines.md))
 

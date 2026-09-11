@@ -4,9 +4,9 @@ Diagnostic and benchmark tools. Swift tools live in this SwiftPM package; the
 C tool (`iokit-dump`) and any C++ tools use their own CMake builds and are
 driven from the root `Makefile`.
 
-> **Status:** only `gpu-probe` has a scaffolded executable (printing stub
-> output) so far. The other entries below are design stubs implemented in
-> Phases 2-3; see each tool's README.
+> **Status:** `gpu-probe` (Swift) and `iokit-dump` (C) are implemented.
+> `if-bench` and `mtl-bench` are design stubs scheduled for Phase 3; see
+> each tool's README.
 
 | Tool | Language | Purpose |
 |---|---|---|

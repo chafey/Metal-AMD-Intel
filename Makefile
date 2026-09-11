@@ -1,7 +1,8 @@
 # Metal-AMD-Intel build entry points
 #
 # Swift artifacts use SwiftPM; C/C++ artifacts use CMake. CMake-backed
-# directories only build once their CMakeLists.txt exists (Phases 3-4).
+# directories only build once their CMakeLists.txt exists (implemented for
+# tools/iokit-dump; mtl-bench and the C/C++ examples land in Phases 3-4).
 
 BUILD_DIR := build
 
