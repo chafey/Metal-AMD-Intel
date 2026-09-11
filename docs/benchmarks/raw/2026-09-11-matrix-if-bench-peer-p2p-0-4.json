@@ -5,6 +5,7 @@
       "name" : "AMD Radeon RX 6900 XT",
       "pciRegistryEntryID" : "0x0000000100000747",
       "pciService" : "display",
+      "peerGroupIDHex" : "0x0000000000000000",
       "recommendedMaxWorkingSetSize" : 17163091968,
       "registryIDHex" : "0x0000000100000cf6"
     },
@@ -14,6 +15,7 @@
       "name" : "AMD Radeon PRO W6800X Duo",
       "pciRegistryEntryID" : "0x00000001000007b9",
       "pciService" : "GFX0",
+      "peerGroupIDHex" : "0x4cf5577a51a24576",
       "recommendedMaxWorkingSetSize" : 34342961152,
       "registryIDHex" : "0x0000000100000d1a",
       "xgmiEnabled" : "1",
@@ -26,6 +28,7 @@
       "name" : "AMD Radeon PRO W6800X Duo",
       "pciRegistryEntryID" : "0x00000001000007b5",
       "pciService" : "GFX0",
+      "peerGroupIDHex" : "0x4cf5577a51a24576",
       "recommendedMaxWorkingSetSize" : 34342961152,
       "registryIDHex" : "0x0000000100000d00",
       "xgmiEnabled" : "1",
@@ -38,6 +41,7 @@
       "name" : "AMD Radeon PRO W6800X Duo",
       "pciRegistryEntryID" : "0x00000001000006d4",
       "pciService" : "GFX0",
+      "peerGroupIDHex" : "0x4cf5577a51a24576",
       "recommendedMaxWorkingSetSize" : 34342961152,
       "registryIDHex" : "0x0000000100000cfb",
       "xgmiEnabled" : "1",
@@ -50,6 +54,7 @@
       "name" : "AMD Radeon PRO W6800X Duo",
       "pciRegistryEntryID" : "0x00000001000006d8",
       "pciService" : "GFX0",
+      "peerGroupIDHex" : "0x4cf5577a51a24576",
       "recommendedMaxWorkingSetSize" : 34342961152,
       "registryIDHex" : "0x0000000100000ccb",
       "xgmiEnabled" : "1",
@@ -88,24 +93,21 @@
     "osBuild" : "25G83"
   },
   "notes" : [
-
+    "p2p path unavailable: devices not in a common Metal peer group (peerGroupID 0\/5545434699043849590): p2p rows skipped"
   ],
   "options" : {
     "deviceA" : 0,
-    "deviceB" : -1,
+    "deviceB" : 4,
     "maxSize" : 67108864,
     "minSize" : 4096,
     "modes" : [
-      "bw",
-      "concurrent",
-      "host",
-      "latency",
       "peer"
     ],
     "paths" : [
       "blit",
       "kernel"
-    ]
+    ],
+    "peerPath" : "p2p"
   },
   "results" : [
 

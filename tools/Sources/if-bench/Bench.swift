@@ -316,6 +316,107 @@ func enqueueHopKernel(_ ctx: DeviceCtx, cb: MTLCommandBuffer, buffer: MTLBuffer,
     enc.endEncoding()
 }
 
+/// MARK: - Peer-group P2P (remote buffer views)
+
+/// Metal 10.15+ peer-group P2P: `MTLDevice.peerGroupID` groups devices that
+/// can address each other's memory, and `newRemoteBufferViewForDevice:`
+/// (public in the SDK, sparsely documented) creates a view of a private
+/// buffer for a peer device. On the AMDRadeonX6000 driver the view is
+/// READ-ONLY — using it as a blit destination aborts the process with
+/// "RemoteView supports read-only operation and cannot be used as
+/// Destination!" — so every transfer here is destination-side pull.
+/// Called via selector because the Swift importer name is unclear across SDKs.
+func remoteBufferView(_ buffer: MTLBuffer, on device: MTLDevice) -> MTLBuffer? {
+    let sel = Selector(("newRemoteBufferViewForDevice:"))
+    guard buffer.responds(to: sel),
+          let raw = buffer.perform(sel, with: device),
+          let view = raw.takeUnretainedValue() as? MTLBuffer
+    else { return nil }
+    // perform() cannot balance the +1 of a `new...` selector; one leaked
+    // reference per view is harmless here (a handful of views per run).
+    return view
+}
+
+/// P2P pull bandwidth: `to`'s queue copies a remote view of a buffer that
+/// lives in `from`'s VRAM into `to`'s own VRAM. Pipelined within one
+/// command buffer like localBandwidth. `useKernel` drives the copy with the
+/// compute copy pipeline instead of the blitter.
+/// Returns seconds per single pull (divided by the pipelined iteration
+/// count), matching the staging-hop rows (`stagingHopBandwidth`) so p2p and
+/// IOSurface-staged numbers are directly comparable.
+func p2pBandwidth(_ from: DeviceCtx, _ to: DeviceCtx, size: Int,
+                  useKernel: Bool = false) -> Double? {
+    guard let src = from.buffer(size), let dst = to.buffer(size),
+          let view = remoteBufferView(src, on: to.device) else { return nil }
+    let useCompute = useKernel && to.copyPipeline != nil
+    let n = iterations(for: size)
+
+    func enqueue(_ cb: MTLCommandBuffer) -> Bool {
+        if useCompute, let pipeline = to.copyPipeline {
+            for _ in 0..<n {
+                guard let enc = cb.makeComputeCommandEncoder() else { return false }
+                to.dispatch(pipeline, encoder: enc,
+                            bindings: [(0, view), (1, dst)],
+                            count: UInt32(size / 16), countIndex: 2)
+                enc.endEncoding()
+            }
+        } else {
+            guard let enc = cb.makeBlitCommandEncoder() else { return false }
+            for _ in 0..<n {
+                enc.copy(from: view, sourceOffset: 0, to: dst, destinationOffset: 0, size: size)
+            }
+            enc.endEncoding()
+        }
+        return true
+    }
+
+    guard let warm = to.queue.makeCommandBuffer(), enqueue(warm) else { return nil }
+    warm.commit()
+    warm.waitUntilCompleted()
+    guard let cb = to.queue.makeCommandBuffer() else { return nil }
+    let seconds = measuredSeconds {
+        enqueue(cb)
+        cb.commit()
+        cb.waitUntilCompleted()
+    }
+    return seconds / Double(n)
+}
+
+/// P2P correctness gate: N rounds where the CPU reseeds the source pattern
+/// with DIFFERENT content each round (shared seed -> blit to private ->
+/// peer-view pull on the other device -> CPU verify). Changing content is
+/// the point: repeated pulls of identical bytes would pass even if the
+/// reader's caches served stale lines across transfers. This is the check
+/// a remote-view protocol needs and llama.cpp-style paths do not run.
+func p2pCoherenceCheck(_ a: DeviceCtx, _ b: DeviceCtx, rounds: Int = 4) -> Bool {
+    let size = 65_536
+    guard let priv = a.buffer(size),
+          let seed = a.device.makeBuffer(length: size, options: .storageModeShared),
+          let view = remoteBufferView(priv, on: b.device),
+          let back = b.device.makeBuffer(length: size, options: .storageModeShared)
+    else { return false }
+    for round in 1...rounds {
+        let expected = { (i: Int) in UInt8((i &+ round &* 31) & 0xFF) }
+        let sp = seed.contents().bindMemory(to: UInt8.self, capacity: size)
+        for i in 0..<size { sp[i] = expected(i) }
+        guard let cbA = a.queue.makeCommandBuffer(),
+              let eA = cbA.makeBlitCommandEncoder() else { return false }
+        eA.copy(from: seed, sourceOffset: 0, to: priv, destinationOffset: 0, size: size)
+        eA.endEncoding()
+        cbA.commit()
+        cbA.waitUntilCompleted()
+        guard let cbB = b.queue.makeCommandBuffer(),
+              let eB = cbB.makeBlitCommandEncoder() else { return false }
+        eB.copy(from: view, sourceOffset: 0, to: back, destinationOffset: 0, size: size)
+        eB.endEncoding()
+        cbB.commit()
+        cbB.waitUntilCompleted()
+        let bp = back.contents().bindMemory(to: UInt8.self, capacity: size)
+        for i in 0..<size where bp[i] != expected(i) { return false }
+    }
+    return true
+}
+
 /// Bandwidth of one staging hop in isolation. Returns seconds per hop.
 func stagingHopBandwidth(_ ctx: DeviceCtx, staging: Staging, write: Bool,
                          useKernel: Bool = false) -> Double? {

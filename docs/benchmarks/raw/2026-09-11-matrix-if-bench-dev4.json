@@ -5,6 +5,7 @@
       "name" : "AMD Radeon RX 6900 XT",
       "pciRegistryEntryID" : "0x0000000100000747",
       "pciService" : "display",
+      "peerGroupIDHex" : "0x0000000000000000",
       "recommendedMaxWorkingSetSize" : 17163091968,
       "registryIDHex" : "0x0000000100000cf6"
     },
@@ -14,6 +15,7 @@
       "name" : "AMD Radeon PRO W6800X Duo",
       "pciRegistryEntryID" : "0x00000001000007b9",
       "pciService" : "GFX0",
+      "peerGroupIDHex" : "0x4cf5577a51a24576",
       "recommendedMaxWorkingSetSize" : 34342961152,
       "registryIDHex" : "0x0000000100000d1a",
       "xgmiEnabled" : "1",
@@ -26,6 +28,7 @@
       "name" : "AMD Radeon PRO W6800X Duo",
       "pciRegistryEntryID" : "0x00000001000007b5",
       "pciService" : "GFX0",
+      "peerGroupIDHex" : "0x4cf5577a51a24576",
       "recommendedMaxWorkingSetSize" : 34342961152,
       "registryIDHex" : "0x0000000100000d00",
       "xgmiEnabled" : "1",
@@ -38,6 +41,7 @@
       "name" : "AMD Radeon PRO W6800X Duo",
       "pciRegistryEntryID" : "0x00000001000006d4",
       "pciService" : "GFX0",
+      "peerGroupIDHex" : "0x4cf5577a51a24576",
       "recommendedMaxWorkingSetSize" : 34342961152,
       "registryIDHex" : "0x0000000100000cfb",
       "xgmiEnabled" : "1",
@@ -50,6 +54,7 @@
       "name" : "AMD Radeon PRO W6800X Duo",
       "pciRegistryEntryID" : "0x00000001000006d8",
       "pciService" : "GFX0",
+      "peerGroupIDHex" : "0x4cf5577a51a24576",
       "recommendedMaxWorkingSetSize" : 34342961152,
       "registryIDHex" : "0x0000000100000ccb",
       "xgmiEnabled" : "1",
@@ -103,7 +108,8 @@
     "paths" : [
       "blit",
       "kernel"
-    ]
+    ],
+    "peerPath" : "p2p"
   },
   "results" : [
     {
@@ -111,7 +117,7 @@
       "direction" : "dev4 local",
       "gbytesPerSecond" : 0,
       "kind" : "bandwidth",
-      "seconds" : 0.0097511530000000003,
+      "seconds" : 0.0094734580000000006,
       "sizeBytes" : 4096
     },
     {
@@ -119,7 +125,7 @@
       "direction" : "dev4 local",
       "gbytesPerSecond" : 0,
       "kind" : "bandwidth",
-      "seconds" : 0.014303592,
+      "seconds" : 0.01423545,
       "sizeBytes" : 4096
     },
     {
@@ -127,7 +133,7 @@
       "direction" : "dev4 local",
       "gbytesPerSecond" : 0,
       "kind" : "bandwidth",
-      "seconds" : 0.0094365639999999997,
+      "seconds" : 0.0094139400000000008,
       "sizeBytes" : 8192
     },
     {
@@ -135,7 +141,7 @@
       "direction" : "dev4 local",
       "gbytesPerSecond" : 0,
       "kind" : "bandwidth",
-      "seconds" : 0.014680156999999999,
+      "seconds" : 0.01454254,
       "sizeBytes" : 8192
     },
     {
@@ -143,7 +149,7 @@
       "direction" : "dev4 local",
       "gbytesPerSecond" : 0,
       "kind" : "bandwidth",
-      "seconds" : 0.0096967879999999996,
+      "seconds" : 0.0094468099999999999,
       "sizeBytes" : 16384
     },
     {
@@ -151,7 +157,7 @@
       "direction" : "dev4 local",
       "gbytesPerSecond" : 0,
       "kind" : "bandwidth",
-      "seconds" : 0.014668011,
+      "seconds" : 0.01465677,
       "sizeBytes" : 16384
     },
     {
@@ -159,7 +165,7 @@
       "direction" : "dev4 local",
       "gbytesPerSecond" : 0,
       "kind" : "bandwidth",
-      "seconds" : 0.0096986680000000006,
+      "seconds" : 0.0096932259999999992,
       "sizeBytes" : 32768
     },
     {
@@ -167,7 +173,7 @@
       "direction" : "dev4 local",
       "gbytesPerSecond" : 0,
       "kind" : "bandwidth",
-      "seconds" : 0.014680531,
+      "seconds" : 0.014772850000000001,
       "sizeBytes" : 32768
     },
     {
@@ -175,7 +181,7 @@
       "direction" : "dev4 local",
       "gbytesPerSecond" : 0.01,
       "kind" : "bandwidth",
-      "seconds" : 0.0048649490000000004,
+      "seconds" : 0.0047924899999999999,
       "sizeBytes" : 65536
     },
     {
@@ -183,7 +189,7 @@
       "direction" : "dev4 local",
       "gbytesPerSecond" : 0.01,
       "kind" : "bandwidth",
-      "seconds" : 0.0074992080000000003,
+      "seconds" : 0.007413556,
       "sizeBytes" : 65536
     },
     {
@@ -191,7 +197,7 @@
       "direction" : "dev4 local",
       "gbytesPerSecond" : 0.050000000000000003,
       "kind" : "bandwidth",
-      "seconds" : 0.0026411519999999999,
+      "seconds" : 0.0025732229999999999,
       "sizeBytes" : 131072
     },
     {
@@ -199,15 +205,15 @@
       "direction" : "dev4 local",
       "gbytesPerSecond" : 0.029999999999999999,
       "kind" : "bandwidth",
-      "seconds" : 0.003811044,
+      "seconds" : 0.0038658339999999999,
       "sizeBytes" : 131072
     },
     {
       "copyPath" : "blit",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 0.17000000000000001,
+      "gbytesPerSecond" : 0.17999999999999999,
       "kind" : "bandwidth",
-      "seconds" : 0.001526412,
+      "seconds" : 0.001456588,
       "sizeBytes" : 262144
     },
     {
@@ -215,217 +221,217 @@
       "direction" : "dev4 local",
       "gbytesPerSecond" : 0.13,
       "kind" : "bandwidth",
-      "seconds" : 0.0020882079999999998,
+      "seconds" : 0.0020708789999999999,
       "sizeBytes" : 262144
     },
     {
       "copyPath" : "blit",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 0.57999999999999996,
+      "gbytesPerSecond" : 0.59999999999999998,
       "kind" : "bandwidth",
-      "seconds" : 0.00090037400000000001,
+      "seconds" : 0.00086822899999999998,
       "sizeBytes" : 524288
     },
     {
       "copyPath" : "kernel",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 0.44,
+      "gbytesPerSecond" : 0.46000000000000002,
       "kind" : "bandwidth",
-      "seconds" : 0.0012011260000000001,
+      "seconds" : 0.0011488850000000001,
       "sizeBytes" : 524288
     },
     {
       "copyPath" : "blit",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 1.51,
+      "gbytesPerSecond" : 1.8500000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.00069584200000000001,
+      "seconds" : 0.00056765600000000004,
       "sizeBytes" : 1048576
     },
     {
       "copyPath" : "kernel",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 1.27,
+      "gbytesPerSecond" : 1.3700000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.000822618,
+      "seconds" : 0.00076785199999999997,
       "sizeBytes" : 1048576
     },
     {
       "copyPath" : "blit",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 5.0899999999999999,
+      "gbytesPerSecond" : 5.7000000000000002,
       "kind" : "bandwidth",
-      "seconds" : 0.000411822,
+      "seconds" : 0.000367983,
       "sizeBytes" : 2097152
     },
     {
       "copyPath" : "kernel",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 4.3099999999999996,
+      "gbytesPerSecond" : 4.2300000000000004,
       "kind" : "bandwidth",
-      "seconds" : 0.000486241,
+      "seconds" : 0.00049543000000000005,
       "sizeBytes" : 2097152
     },
     {
       "copyPath" : "blit",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 14.32,
+      "gbytesPerSecond" : 17.32,
       "kind" : "bandwidth",
-      "seconds" : 0.00029296599999999997,
+      "seconds" : 0.00024223300000000001,
       "sizeBytes" : 4194304
     },
     {
       "copyPath" : "kernel",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 12.09,
+      "gbytesPerSecond" : 13.57,
       "kind" : "bandwidth",
-      "seconds" : 0.00034701900000000001,
+      "seconds" : 0.00030899500000000001,
       "sizeBytes" : 4194304
     },
     {
       "copyPath" : "blit",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 41.399999999999999,
+      "gbytesPerSecond" : 42.359999999999999,
       "kind" : "bandwidth",
-      "seconds" : 0.000202604,
+      "seconds" : 0.00019801399999999999,
       "sizeBytes" : 8388608
     },
     {
       "copyPath" : "kernel",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 31.27,
+      "gbytesPerSecond" : 32.359999999999999,
       "kind" : "bandwidth",
-      "seconds" : 0.00026828000000000003,
+      "seconds" : 0.00025919199999999999,
       "sizeBytes" : 8388608
     },
     {
       "copyPath" : "blit",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 53.979999999999997,
+      "gbytesPerSecond" : 55.030000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.00031081000000000001,
+      "seconds" : 0.00030485400000000002,
       "sizeBytes" : 16777216
     },
     {
       "copyPath" : "kernel",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 43.630000000000003,
+      "gbytesPerSecond" : 44.960000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.00038451199999999999,
+      "seconds" : 0.00037319000000000002,
       "sizeBytes" : 16777216
     },
     {
       "copyPath" : "blit",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 62.530000000000001,
+      "gbytesPerSecond" : 64.890000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.00053663500000000004,
+      "seconds" : 0.00051707800000000003,
       "sizeBytes" : 33554432
     },
     {
       "copyPath" : "kernel",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 55.68,
+      "gbytesPerSecond" : 57.789999999999999,
       "kind" : "bandwidth",
-      "seconds" : 0.00060265899999999996,
+      "seconds" : 0.00058067100000000005,
       "sizeBytes" : 33554432
     },
     {
       "copyPath" : "blit",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 72,
+      "gbytesPerSecond" : 74.340000000000003,
       "kind" : "bandwidth",
-      "seconds" : 0.00093204799999999999,
+      "seconds" : 0.00090267199999999998,
       "sizeBytes" : 67108864
     },
     {
       "copyPath" : "kernel",
       "direction" : "dev4 local",
-      "gbytesPerSecond" : 63.590000000000003,
+      "gbytesPerSecond" : 68.099999999999994,
       "kind" : "bandwidth",
-      "seconds" : 0.0010553509999999999,
+      "seconds" : 0.00098547900000000004,
       "sizeBytes" : 67108864
     },
     {
       "direction" : "dev4 local",
       "kind" : "latency",
       "sizeBytes" : 4096,
-      "usPerHop" : 4
+      "usPerHop" : 3.8799999999999999
     },
     {
       "direction" : "dev4 local",
       "kind" : "latency",
       "sizeBytes" : 8192,
-      "usPerHop" : 3.9900000000000002
+      "usPerHop" : 4.1200000000000001
     },
     {
       "direction" : "dev4 local",
       "kind" : "latency",
       "sizeBytes" : 16384,
-      "usPerHop" : 4.0700000000000003
+      "usPerHop" : 3.96
     },
     {
       "direction" : "dev4 local",
       "kind" : "latency",
       "sizeBytes" : 32768,
-      "usPerHop" : 3.9399999999999999
+      "usPerHop" : 4.1399999999999997
     },
     {
       "direction" : "dev4 local",
       "kind" : "latency",
       "sizeBytes" : 65536,
-      "usPerHop" : 4.0300000000000002
+      "usPerHop" : 3.9100000000000001
     },
     {
       "direction" : "dev4 local",
       "kind" : "latency",
       "sizeBytes" : 131072,
-      "usPerHop" : 4.0199999999999996
+      "usPerHop" : 4.1900000000000004
     },
     {
       "direction" : "dev4 local",
       "kind" : "latency",
       "sizeBytes" : 262144,
-      "usPerHop" : 4.2699999999999996
+      "usPerHop" : 4.5300000000000002
     },
     {
       "direction" : "dev4 local",
       "kind" : "latency",
       "sizeBytes" : 524288,
-      "usPerHop" : 4.6799999999999997
+      "usPerHop" : 4.7199999999999998
     },
     {
       "direction" : "dev4 local",
       "kind" : "latency",
       "sizeBytes" : 1048576,
-      "usPerHop" : 6.0800000000000001
+      "usPerHop" : 6.0999999999999996
     },
     {
       "direction" : "dev4 local",
       "kind" : "latency",
       "sizeBytes" : 2097152,
-      "usPerHop" : 7.7300000000000004
+      "usPerHop" : 7.8899999999999997
     },
     {
       "direction" : "dev4 local",
       "kind" : "latency",
       "sizeBytes" : 4194304,
-      "usPerHop" : 10.76
+      "usPerHop" : 11
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 0.029999999999999999,
+      "gbytesPerSecond" : 0.040000000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.000131314,
+      "seconds" : 0.000102977,
       "sizeBytes" : 4096
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (gpu part)",
-      "gbytesPerSecond" : 0.029999999999999999,
+      "gbytesPerSecond" : 0.040000000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.000125981,
+      "seconds" : 9.8004999999999994e-05,
       "sizeBytes" : 4096
     },
     {
@@ -433,7 +439,7 @@
       "direction" : "dev4->host (total)",
       "gbytesPerSecond" : 0.029999999999999999,
       "kind" : "bandwidth",
-      "seconds" : 0.00013946,
+      "seconds" : 0.00013711100000000001,
       "sizeBytes" : 4096
     },
     {
@@ -441,23 +447,23 @@
       "direction" : "dev4->host (gpu part)",
       "gbytesPerSecond" : 0.050000000000000003,
       "kind" : "bandwidth",
-      "seconds" : 8.7155000000000002e-05,
+      "seconds" : 8.5978000000000009e-05,
       "sizeBytes" : 4096
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 0.070000000000000007,
+      "gbytesPerSecond" : 0.089999999999999997,
       "kind" : "bandwidth",
-      "seconds" : 0.000117132,
+      "seconds" : 9.5278000000000005e-05,
       "sizeBytes" : 8192
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (gpu part)",
-      "gbytesPerSecond" : 0.070000000000000007,
+      "gbytesPerSecond" : 0.089999999999999997,
       "kind" : "bandwidth",
-      "seconds" : 0.000113019,
+      "seconds" : 8.845700000000001e-05,
       "sizeBytes" : 8192
     },
     {
@@ -465,311 +471,303 @@
       "direction" : "dev4->host (total)",
       "gbytesPerSecond" : 0.080000000000000002,
       "kind" : "bandwidth",
-      "seconds" : 0.000106246,
+      "seconds" : 9.8459e-05,
       "sizeBytes" : 8192
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (gpu part)",
-      "gbytesPerSecond" : 0.089999999999999997,
+      "gbytesPerSecond" : 0.10000000000000001,
       "kind" : "bandwidth",
-      "seconds" : 8.9609000000000002e-05,
+      "seconds" : 8.2894999999999998e-05,
       "sizeBytes" : 8192
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 0.12,
+      "gbytesPerSecond" : 0.16,
       "kind" : "bandwidth",
-      "seconds" : 0.00013980700000000001,
+      "seconds" : 0.000100048,
       "sizeBytes" : 16384
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (gpu part)",
-      "gbytesPerSecond" : 0.12,
+      "gbytesPerSecond" : 0.17999999999999999,
       "kind" : "bandwidth",
-      "seconds" : 0.000132695,
+      "seconds" : 9.3306000000000004e-05,
       "sizeBytes" : 16384
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (total)",
-      "gbytesPerSecond" : 0.14000000000000001,
+      "gbytesPerSecond" : 0.14999999999999999,
       "kind" : "bandwidth",
-      "seconds" : 0.000115123,
+      "seconds" : 0.00010870999999999999,
       "sizeBytes" : 16384
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (gpu part)",
-      "gbytesPerSecond" : 0.19,
+      "gbytesPerSecond" : 0.20000000000000001,
       "kind" : "bandwidth",
-      "seconds" : 8.5598000000000003e-05,
+      "seconds" : 8.1524999999999989e-05,
       "sizeBytes" : 16384
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 0.23000000000000001,
+      "gbytesPerSecond" : 0.33000000000000002,
       "kind" : "bandwidth",
-      "seconds" : 0.00014211599999999999,
+      "seconds" : 9.8585999999999994e-05,
       "sizeBytes" : 32768
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (gpu part)",
+      "gbytesPerSecond" : 0.39000000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 8.3781999999999992e-05,
+      "sizeBytes" : 32768
+    },
+    {
+      "copyPath" : "kernel+read",
+      "direction" : "dev4->host (total)",
       "gbytesPerSecond" : 0.26000000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.00012641099999999999,
-      "sizeBytes" : 32768
-    },
-    {
-      "copyPath" : "kernel+read",
-      "direction" : "dev4->host (total)",
-      "gbytesPerSecond" : 0.22,
-      "kind" : "bandwidth",
-      "seconds" : 0.00014631,
+      "seconds" : 0.00012759499999999999,
       "sizeBytes" : 32768
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (gpu part)",
-      "gbytesPerSecond" : 0.34999999999999998,
+      "gbytesPerSecond" : 0.42999999999999999,
       "kind" : "bandwidth",
-      "seconds" : 9.2307999999999998e-05,
+      "seconds" : 7.6897999999999995e-05,
       "sizeBytes" : 32768
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 0.54000000000000004,
+      "gbytesPerSecond" : 0.65000000000000002,
       "kind" : "bandwidth",
-      "seconds" : 0.00012216500000000001,
+      "seconds" : 0.000100993,
       "sizeBytes" : 65536
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (gpu part)",
-      "gbytesPerSecond" : 0.70999999999999996,
+      "gbytesPerSecond" : 0.90000000000000002,
       "kind" : "bandwidth",
-      "seconds" : 9.1775000000000008e-05,
+      "seconds" : 7.3070999999999992e-05,
       "sizeBytes" : 65536
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (total)",
-      "gbytesPerSecond" : 0.32000000000000001,
+      "gbytesPerSecond" : 0.39000000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.00020314500000000001,
+      "seconds" : 0.000166878,
       "sizeBytes" : 65536
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (gpu part)",
-      "gbytesPerSecond" : 0.62,
+      "gbytesPerSecond" : 0.95999999999999996,
       "kind" : "bandwidth",
-      "seconds" : 0.000105321,
+      "seconds" : 6.8221999999999998e-05,
       "sizeBytes" : 65536
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 1.03,
+      "gbytesPerSecond" : 1.1100000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.00012750500000000001,
+      "seconds" : 0.000117712,
       "sizeBytes" : 131072
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (gpu part)",
-      "gbytesPerSecond" : 1.9199999999999999,
+      "gbytesPerSecond" : 2.1200000000000001,
       "kind" : "bandwidth",
-      "seconds" : 6.8291000000000001e-05,
+      "seconds" : 6.1853000000000006e-05,
       "sizeBytes" : 131072
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (total)",
-      "gbytesPerSecond" : 0.34999999999999998,
+      "gbytesPerSecond" : 0.41999999999999998,
       "kind" : "bandwidth",
-      "seconds" : 0.00037374100000000003,
+      "seconds" : 0.000309167,
       "sizeBytes" : 131072
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (gpu part)",
-      "gbytesPerSecond" : 0.71999999999999997,
+      "gbytesPerSecond" : 1.1100000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.00018229600000000003,
+      "seconds" : 0.00011788200000000001,
       "sizeBytes" : 131072
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 0.70999999999999996,
+      "gbytesPerSecond" : 2.0299999999999998,
       "kind" : "bandwidth",
-      "seconds" : 0.00037015600000000001,
-      "sizeBytes" : 262144
-    },
-    {
-      "copyPath" : "memset+kernel",
-      "direction" : "host->dev4 (gpu part)",
-      "gbytesPerSecond" : 1.1200000000000001,
-      "kind" : "bandwidth",
-      "seconds" : 0.00023478100000000001,
+      "seconds" : 0.000129374,
       "sizeBytes" : 262144
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (total)",
-      "gbytesPerSecond" : 0.5,
+      "gbytesPerSecond" : 0.55000000000000004,
       "kind" : "bandwidth",
-      "seconds" : 0.00052529499999999995,
+      "seconds" : 0.00047316900000000001,
       "sizeBytes" : 262144
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (gpu part)",
-      "gbytesPerSecond" : 2.1299999999999999,
+      "gbytesPerSecond" : 2.5800000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.00012308299999999996,
+      "seconds" : 0.00010157100000000001,
       "sizeBytes" : 262144
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 2.8700000000000001,
+      "gbytesPerSecond" : 3.2999999999999998,
       "kind" : "bandwidth",
-      "seconds" : 0.000182917,
+      "seconds" : 0.00015866900000000001,
       "sizeBytes" : 524288
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (total)",
-      "gbytesPerSecond" : 0.62,
+      "gbytesPerSecond" : 0.63,
       "kind" : "bandwidth",
-      "seconds" : 0.00084587300000000002,
+      "seconds" : 0.00083728100000000005,
       "sizeBytes" : 524288
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (gpu part)",
-      "gbytesPerSecond" : 5.2400000000000002,
+      "gbytesPerSecond" : 6.0999999999999996,
       "kind" : "bandwidth",
-      "seconds" : 0.00010012699999999999,
+      "seconds" : 8.5880000000000093e-05,
       "sizeBytes" : 524288
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 3.8199999999999998,
+      "gbytesPerSecond" : 4.2000000000000002,
       "kind" : "bandwidth",
-      "seconds" : 0.00027426700000000002,
+      "seconds" : 0.00024950599999999998,
       "sizeBytes" : 1048576
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (total)",
-      "gbytesPerSecond" : 0.70999999999999996,
+      "gbytesPerSecond" : 0.72999999999999998,
       "kind" : "bandwidth",
-      "seconds" : 0.0014768800000000001,
+      "seconds" : 0.001434879,
       "sizeBytes" : 1048576
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 5.2699999999999996,
+      "gbytesPerSecond" : 5.1900000000000004,
       "kind" : "bandwidth",
-      "seconds" : 0.00039815,
+      "seconds" : 0.00040373200000000002,
       "sizeBytes" : 2097152
-    },
-    {
-      "copyPath" : "kernel+read",
-      "direction" : "dev4->host (total)",
-      "gbytesPerSecond" : 0.73999999999999999,
-      "kind" : "bandwidth",
-      "seconds" : 0.0028315469999999998,
-      "sizeBytes" : 2097152
-    },
-    {
-      "copyPath" : "memset+kernel",
-      "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 5.9199999999999999,
-      "kind" : "bandwidth",
-      "seconds" : 0.000708043,
-      "sizeBytes" : 4194304
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (total)",
       "gbytesPerSecond" : 0.77000000000000002,
       "kind" : "bandwidth",
-      "seconds" : 0.0054434959999999999,
+      "seconds" : 0.0027141209999999999,
+      "sizeBytes" : 2097152
+    },
+    {
+      "copyPath" : "memset+kernel",
+      "direction" : "host->dev4 (total)",
+      "gbytesPerSecond" : 4.9199999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.00085317100000000001,
       "sizeBytes" : 4194304
+    },
+    {
+      "copyPath" : "kernel+read",
+      "direction" : "dev4->host (total)",
+      "gbytesPerSecond" : 0.81000000000000005,
+      "kind" : "bandwidth",
+      "seconds" : 0.0051957410000000002,
+      "sizeBytes" : 4194304
+    },
+    {
+      "copyPath" : "memset+kernel",
+      "direction" : "host->dev4 (total)",
+      "gbytesPerSecond" : 5.4199999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.001547723,
+      "sizeBytes" : 8388608
+    },
+    {
+      "copyPath" : "kernel+read",
+      "direction" : "dev4->host (total)",
+      "gbytesPerSecond" : 0.79000000000000004,
+      "kind" : "bandwidth",
+      "seconds" : 0.010557074,
+      "sizeBytes" : 8388608
+    },
+    {
+      "copyPath" : "memset+kernel",
+      "direction" : "host->dev4 (total)",
+      "gbytesPerSecond" : 5.9299999999999997,
+      "kind" : "bandwidth",
+      "seconds" : 0.002827572,
+      "sizeBytes" : 16777216
+    },
+    {
+      "copyPath" : "kernel+read",
+      "direction" : "dev4->host (total)",
+      "gbytesPerSecond" : 0.81000000000000005,
+      "kind" : "bandwidth",
+      "seconds" : 0.020721730000000001,
+      "sizeBytes" : 16777216
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (total)",
       "gbytesPerSecond" : 5.7000000000000002,
       "kind" : "bandwidth",
-      "seconds" : 0.001471953,
-      "sizeBytes" : 8388608
-    },
-    {
-      "copyPath" : "kernel+read",
-      "direction" : "dev4->host (total)",
-      "gbytesPerSecond" : 0.77000000000000002,
-      "kind" : "bandwidth",
-      "seconds" : 0.010859203,
-      "sizeBytes" : 8388608
-    },
-    {
-      "copyPath" : "memset+kernel",
-      "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 7.4299999999999997,
-      "kind" : "bandwidth",
-      "seconds" : 0.002257303,
-      "sizeBytes" : 16777216
-    },
-    {
-      "copyPath" : "kernel+read",
-      "direction" : "dev4->host (total)",
-      "gbytesPerSecond" : 0.75,
-      "kind" : "bandwidth",
-      "seconds" : 0.022516748,
-      "sizeBytes" : 16777216
-    },
-    {
-      "copyPath" : "memset+kernel",
-      "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 6.0599999999999996,
-      "kind" : "bandwidth",
-      "seconds" : 0.0055330919999999999,
+      "seconds" : 0.0058890050000000001,
       "sizeBytes" : 33554432
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (total)",
-      "gbytesPerSecond" : 0.79000000000000004,
+      "gbytesPerSecond" : 0.81000000000000005,
       "kind" : "bandwidth",
-      "seconds" : 0.042212161999999998,
+      "seconds" : 0.041359956000000003,
       "sizeBytes" : 33554432
     },
     {
       "copyPath" : "memset+kernel",
       "direction" : "host->dev4 (total)",
-      "gbytesPerSecond" : 5.4900000000000002,
+      "gbytesPerSecond" : 5.8200000000000003,
       "kind" : "bandwidth",
-      "seconds" : 0.012230842,
+      "seconds" : 0.011531463,
       "sizeBytes" : 67108864
     },
     {
       "copyPath" : "kernel+read",
       "direction" : "dev4->host (total)",
-      "gbytesPerSecond" : 0.79000000000000004,
+      "gbytesPerSecond" : 0.80000000000000004,
       "kind" : "bandwidth",
-      "seconds" : 0.085296896999999997,
+      "seconds" : 0.083847620999999997,
       "sizeBytes" : 67108864
     }
   ],

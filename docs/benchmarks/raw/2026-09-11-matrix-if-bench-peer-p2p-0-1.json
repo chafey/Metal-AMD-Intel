@@ -93,18 +93,14 @@
     "osBuild" : "25G83"
   },
   "notes" : [
-
+    "p2p path unavailable: devices not in a common Metal peer group (peerGroupID 0\/5545434699043849590): p2p rows skipped"
   ],
   "options" : {
     "deviceA" : 0,
-    "deviceB" : -1,
+    "deviceB" : 1,
     "maxSize" : 67108864,
     "minSize" : 4096,
     "modes" : [
-      "bw",
-      "concurrent",
-      "host",
-      "latency",
       "peer"
     ],
     "paths" : [

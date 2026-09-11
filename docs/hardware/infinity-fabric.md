@@ -39,21 +39,36 @@ Measured numbers live in [../benchmarks/](../benchmarks/) and are produced by
 
 | Card | Direction | Buffer size | Bandwidth | Latency | Report |
 |---|---|---|---|---|---|
-| W6800X Duo | local (device → own VRAM) | 64 MiB | 67 GB/s | 6 µs/copy @1 MiB | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
-| W6800X Duo ×2 | dev → staging write | 16–64 MiB | 22–26 GB/s | — | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
-| W6800X Duo ×2 | staging → dev read | 32–64 MiB | 79–101 GB/s | — | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
-| W6800X Duo ×2 | dev → dev (via staging, 2 hops) | 64 MiB/hop | 7.3–8.8 GB/s | 170–223 µs/hop | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
-| W6800X Duo ×2 | dev → dev (within one hive, via staging, 2 hops) | 128–256 MiB/hop | ≈ 9.1 GB/s (blit hops) / ≈ 11 GB/s (kernel hops) | — | [2026-09-11 matrix](../benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md) |
+| W6800X Duo | local (device → own VRAM) | 64 MiB | 70.3–74.3 GB/s | 3.9–4.3 µs/copy @4 KiB | [2026-09-11 matrix](../benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md) |
+| W6800X Duo ×2 | dev → staging write (blit hop) | 64 MiB | 24–25 GB/s (kernel hop: 106–192) | — | [2026-09-11 matrix](../benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md) |
+| W6800X Duo ×2 | staging → dev read (blit hop) | 64 MiB | 88–106 GB/s | — | [2026-09-11 matrix](../benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md) |
+| W6800X Duo ×2 | dev → dev (within one hive, via staging, 2 hops) | 64 MiB/hop | 8.3–8.6 GB/s (blit hops) / 9.7–10.2 GB/s (kernel hops) | 121–148 µs/hop @4 KiB | [2026-09-11 matrix](../benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md) |
+| W6800X Duo ×2 | dev → dev (p2p pull, on-module Infinity Fabric Link jumper) | 64 MiB | 38.1–38.8 GB/s (blit) / 37.2–37.8 (kernel read) | — | [2026-09-11 p2p matrix](../benchmarks/2026-09-11-w6800x-duo-p2p-peer-group-matrix.md) |
+| W6800X Duo ×2 | dev → dev (p2p pull, cross-card Infinity Fabric Link bridge) | 64 MiB | 36.8–37.8 GB/s (blit) / 34.0–36.9 (kernel read) | — | [2026-09-11 p2p matrix](../benchmarks/2026-09-11-w6800x-duo-p2p-peer-group-matrix.md) |
 
-Two findings from that report, pending independent confirmation:
+Findings from the 2026-09-11 reports, pending independent confirmation:
 
-- Metal exposes **no direct GPU→GPU copy**; cross-device movement goes
-  through an IOSurface staging region (two hops, one commit/wait each), and
-  the staging route measures the same for a same-module pair and for the
-  bridged cross-card pair — no visible bridge benefit through this API.
-- Staging hop rates (up to 101 GB/s) **exceed the PCIe Gen3 x16 ceiling**,
+- **Metal does expose a direct GPU→GPU path on this driver** via
+  peer-group remote buffer views (`MTLDevice.peerGroupID` +
+  `MTLBuffer newRemoteBufferViewForDevice:`, public macOS 10.15+ APIs).
+  The xGMI hive appears as one Metal peer group; a device whose queue
+  **pulls** (reads) a view of the peer's VRAM reaches 36.8–38.8 GB/s with
+  no IOSurface staging. Views are read-only on AMDRadeonX6000 — the pull
+  direction is mandatory ([gotchas](../metal/gotchas.md)). Cross-hive
+  pairs (hive member ↔ non-hive card) are not in a peer group and return
+  nil views. (An earlier revision of this document claimed no direct
+  GPU→GPU copy existed; that was wrong — the claim only ever held for the
+  staging route.)
+- **The staging route** (IOSurface, two hops, one commit/wait each)
+  measures the same for a same-module pair and for the bridged cross-card
+  pair (chain plateau 8.3–10.2 GB/s) — no visible bridge benefit *through
+  that route*, while p2p pull shows a healthy link under both topologies.
+- Staging hop rates (88–106 GB/s blit reads; 106–192 GB/s kernel-driven)
+  **exceed the PCIe Gen3 x16 ceiling**,
   so the driver places IOSurface pages in GPU memory rather than host RAM;
-  whether remote access rides the xGMI hive is not yet directly evidenced.
+  whether remote access rides the xGMI hive is not yet directly evidenced
+  for the staging route (for the p2p route, the peer group == xGMI hive
+  correspondence is directly evidenced by `peerGroupID` values).
 
 Directions worth distinguishing:
 

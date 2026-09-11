@@ -58,11 +58,19 @@ max threadgroup memory, GPU tiers).
 Covered in [../../examples/swift/multi-gpu](../../examples/swift/multi-gpu):
 
 - Command queues are per-device; synchronization across devices is explicit.
-- TODO: document supported mechanisms for sharing `MTLBuffer`/`MTLTexture`
-  content between two devices on the same Mac (shared-mode buffers,
-  `MTLShareableSharedBufferManager`, IOSurface routes) and which of them work
-  across a Duo card's Infinity Fabric Link jumper (and across a cross-card
-  Infinity Fabric Link bridge).
+- Cross-device buffer sharing on this driver (verified 2026-09-11):
+  the primary mechanism is the **peer group**: all devices in one xGMI hive
+  share a non-zero `MTLDevice.peerGroupID`, and
+  `MTLBuffer newRemoteBufferViewForDevice:` (public macOS 10.15+ API) hands
+  a peer a **read-only** view of a private VRAM buffer. Transfers are
+  destination-side pulls on the reader's own queue; both directions of an
+  A↔B exchange are two pulls. Works across the Infinity Fabric Link jumper
+  and the cross-card Infinity Fabric Link bridge alike (both are inside one
+  peer group); devices outside the hive (`peerGroupID` 0) get nil views and
+  must use IOSurface staging or host memory. Numbers:
+  [p2p matrix report](../benchmarks/2026-09-11-w6800x-duo-p2p-peer-group-matrix.md).
+  TODO: document `MTLShareableSharedBufferManager` and shared-mode buffers
+  for the process-sharing case (not yet exercised here).
 
 See [gotchas.md](gotchas.md) for driver-level surprises and
 [tuning.md](tuning.md) for placement guidance.

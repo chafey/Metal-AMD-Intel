@@ -11,7 +11,7 @@ driven from the root `Makefile`.
 | Tool | Language | Purpose |
 |---|---|---|
 | [gpu-probe](gpu-probe/) | Swift | Enumerate `MTLDevice`s + IOKit registry properties; paste-ready environment block for benchmark reports |
-| [if-bench](if-bench/) | Swift | Local / IOSurface-staged cross-device / host copy bandwidth & latency; concurrent-load repro |
+| [if-bench](if-bench/) | Swift | Local / cross-device (IOSurface staging **and** peer-group P2P remote views) / host copy bandwidth & latency; concurrent-load repro |
 | [mtl-bench](mtl-bench/) | C++ | Command-encoder / dispatch microbenchmarks |
 | [iokit-dump](iokit-dump/) | C | Raw IORegistry dump of GPU/PCI families for triage |
 

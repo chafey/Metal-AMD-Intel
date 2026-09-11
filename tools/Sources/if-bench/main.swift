@@ -34,8 +34,12 @@ func printUsage() {
           --max-size BYTES  sweep end (default 67108864 = 64 MiB)
           --path blit|kernel|both    copy implementation under test (default both;
                             affects local bw and concurrent modes)
-          --peer-path blit|kernel|both   hop implementation for peer mode
-                            (default blit; latency rows are blit-only)
+          --peer-path p2p|blit|kernel|both|all   implementation for peer mode
+                            (default p2p = peer-group remote buffer views,
+                            destination-side pulls; skipped with a note when the
+                            devices share no peer group. blit/kernel = the two-hop
+                            IOSurface staging route, the fallback for pairs
+                            outside a peer group; latency rows are blit-only)
           --mode M[,M...]   comma-separated from bw|latency|peer|host|concurrent
                             (or 'all'; default all)
           --list-devices    print the device table and exit
@@ -50,7 +54,7 @@ var opts = (
     minSize: 4096, maxSize: 67_108_864,
     paths: Set(["blit", "kernel"]),
     modes: Set(["bw", "latency", "peer", "host", "concurrent"]),
-    peerPath: "blit",
+    peerPath: "p2p",
     json: false, list: false
 )
 
@@ -80,7 +84,7 @@ while i < arguments.count {
     case "--peer-path":
         i += 1
         guard i < arguments.count else { break }
-        if ["blit", "kernel", "both"].contains(arguments[i]) { opts.peerPath = arguments[i] }
+        if ["blit", "kernel", "p2p", "both", "all"].contains(arguments[i]) { opts.peerPath = arguments[i] }
     case "--mode":
         i += 1
         guard i < arguments.count else { break }
@@ -128,7 +132,8 @@ func emitReport(devices: [[String: Any]], results: [[String: Any]], notes: [Stri
             + "\(device["name"] as? String ?? "?")"
             + "  slot=\(device["slot"] as? String ?? "?")"
             + "  node=\(device["xgmiNodeIndex"] as? String ?? "?")"
-            + " hive=\(device["xgmiHiveSize"] as? String ?? "?")")
+            + " hive=\(device["xgmiHiveSize"] as? String ?? "?")"
+            + " group=\(device["peerGroupIDHex"] as? String ?? "?")")
     }
     for r in results {
         let kind = r["kind"] as? String ?? "?"
@@ -156,6 +161,7 @@ func deviceSummary(_ device: MTLDevice, index: Int) -> [String: Any] {
         "recommendedMaxWorkingSetSize": Int(device.recommendedMaxWorkingSetSize),
     ]
     if device.isHeadless { info["headless"] = true }
+    info["peerGroupIDHex"] = String(format: "0x%016llx", device.peerGroupID)
     return info
 }
 
@@ -323,8 +329,50 @@ if opts.modes.contains("concurrent"), ctxB == nil {
 // MARK: - Peer (cross-device via IOSurface staging)
 
 if opts.modes.contains("peer"), let b = ctxB {
-    let peerPaths: [String] = opts.peerPath == "both" ? ["blit", "kernel"] : [opts.peerPath]
+    let peerPaths: [String]
+    switch opts.peerPath {
+    case "both": peerPaths = ["blit", "kernel"]
+    case "all":  peerPaths = ["blit", "kernel", "p2p"]
+    default:     peerPaths = [opts.peerPath]
+    }
     for peerPath in peerPaths {
+        if peerPath == "p2p" {
+            // Peer-group P2P: destination-side pulls of remote buffer views.
+            let devA = metalDevices[opts.deviceA], devB = metalDevices[opts.deviceB]
+            let gidA = devA.peerGroupID, gidB = devB.peerGroupID
+            if gidA == 0 || gidA != gidB {
+                notes.append("p2p path unavailable: devices not in a common Metal peer "
+                    + "group (peerGroupID \(gidA)/\(gidB)): p2p rows skipped")
+                continue
+            }
+            progress("p2p coherence check (changing patterns, both directions)")
+            if !p2pCoherenceCheck(ctxA, b) || !p2pCoherenceCheck(b, ctxA) {
+                notes.append("P2P coherence check FAILED (changing-pattern pulls): p2p "
+                    + "rows omitted; remote-view reads are not dependable on this driver")
+                continue
+            }
+            notes.append("p2p = destination-side pulls of remote buffer views within "
+                + "peer group 0x" + String(gidA, radix: 16) + "; remote views are "
+                + "read-only on this driver; p2p rows move one hop, bytes = buffer size")
+            for s in sizes {
+                progress("p2p sweep \(s) bytes")
+                if let t = p2pBandwidth(ctxA, b, size: s) {
+                    bandwidthRow("\(labelA)->\(labelB) (p2p pull)", "p2p", bytes: s, seconds: t)
+                }
+                if let t = p2pBandwidth(b, ctxA, size: s) {
+                    bandwidthRow("\(labelB)->\(labelA) (p2p pull)", "p2p", bytes: s, seconds: t)
+                }
+                if b.copyPipeline != nil,
+                   let t = p2pBandwidth(ctxA, b, size: s, useKernel: true) {
+                    bandwidthRow("\(labelA)->\(labelB) (p2p pull)", "p2p-kernel", bytes: s, seconds: t)
+                }
+                if ctxA.copyPipeline != nil,
+                   let t = p2pBandwidth(b, ctxA, size: s, useKernel: true) {
+                    bandwidthRow("\(labelB)->\(labelA) (p2p pull)", "p2p-kernel", bytes: s, seconds: t)
+                }
+            }
+            continue
+        }
         let useKernel = peerPath == "kernel"
         if useKernel, [ctxA, b].contains(where: { $0.hopWritePipeline == nil || $0.hopReadPipeline == nil }) {
             notes.append("kernel peer path unavailable (hop pipeline compile failed): \(peerPath) rows skipped")

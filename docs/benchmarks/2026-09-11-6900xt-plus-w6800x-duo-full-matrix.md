@@ -1,21 +1,30 @@
-# Benchmark Report: 2× W6800X Duo + RX 6900 XT — full device matrix
+# Benchmark Report: 2× W6800X Duo + RX 6900 XT — full device matrix (fresh capture)
 
 - **Date:** 2026-09-11
 - **Author:** repo maintainer
-- **Tool:** `if-bench` (per-device modes, `--device-b` optional) and
-  `mtl-bench` (`--device N`), repo @ Phase 3 + all-GPU matrix update
-- **Exact commands:** `./scripts/run-all-benchmarks.sh`, which runs
-  `swift run --package-path tools gpu-probe --json`;
-  `swift run --package-path tools if-bench -- --device-a N --mode bw,latency,host --json`
-  for N = 0…4;
-  `swift run --package-path tools if-bench -- --device-a A --device-b B --mode peer --json`
-  for all 10 pairs A < B; and `build/tools/mtl-bench/mtl-bench --device N --json`
-  for N = 0…4.
-- **Build note:** `mtl-bench` is a Release build (CMake default); the
-  `if-bench` runs used `swift run`'s default **debug** build. GPU-side copy
-  times should be close to Release, but CPU-side encode/timing overhead in
-  these numbers is inflated relative to the Release run in
-  [the first report](2026-09-11-w6800x-duo-copy-paths.md).
+- **Tool:** `if-bench` (Release build, peer-group P2P default) and
+  `mtl-bench` (Release), repo @ Phase 3 tooling + p2p route
+- **Exact commands:**
+  - `PEER=0 ./scripts/run-all-benchmarks.sh` — runs
+    `swift run --package-path tools gpu-probe --json`,
+    `swift run --package-path tools if-bench -- --list-devices --json`,
+    `swift run --package-path tools if-bench -- --device-a N --mode bw,latency,host --json`
+    (N = 0…4) and `build/tools/mtl-bench/mtl-bench --device N --json` (N = 0…4)
+  - **p2p (default peer route)**, all 10 pairs A < B:
+    `tools/.build/release/if-bench --device-a A --device-b B --mode peer --json`
+  - **staging fallback**, all 10 pairs A < B:
+    `tools/.build/release/if-bench --device-a A --device-b B --mode peer --peer-path both --json`
+- **Build note:** this capture is all-Release (`if-bench` built with
+  `swift build --package-path tools -c release`). CPU-side overheads are
+  therefore lower than in earlier debug-build captures; do not mix builds
+  when comparing.
+- **Session note:** this is a clean rerun on an idle machine (an earlier
+  attempt on the same day was invalidated by concurrent GPU load and has
+  been replaced). All 32 raw files below come from one contiguous session.
+
+This report supersedes the day's earlier captures; the 6-pair p2p view has
+its own companion summary,
+[2026-09-11-w6800x-duo-p2p-peer-group-matrix.md](2026-09-11-w6800x-duo-p2p-peer-group-matrix.md).
 
 ## Machine
 
@@ -25,7 +34,7 @@
 | CPU | Intel Xeon W-3245 @ 3.20 GHz (16c/32t) |
 | RAM | 192 GB |
 | macOS | 26.6.2 (25G83) |
-| GPU(s) | 2× Radeon Pro W6800X Duo (4 dies, xGMI hive of 4, Infinity Fabric Link bridge fitted) + 1× MSI Radeon RX 6900 XT (consumer card, subsystem vendor 0x1462, plain PCIe, no xGMI properties) |
+| GPU(s) | 2× Radeon Pro W6800X Duo (4 dies, xGMI hive of 4, Infinity Fabric Link bridge fitted) + 1× MSI Radeon RX 6900 XT (consumer card, plain PCIe, no xGMI properties) |
 | IOAccelerator version | IOAcceleratorFamily2 487.4.3, AMDRadeonX6000* 7.0.1 |
 
 **Displays are attached to the RX 6900 XT** (maintainer setup) so the Duo
@@ -35,244 +44,145 @@ affect *its* numbers (see caveats).
 
 ### Devices under test
 
-| Metal index | Name | xGMI hive / node | Notes |
-|---|---|---|---|
-| dev0 | AMD Radeon RX 6900 XT | — (no xGMI keys) | display GPU |
-| dev1 | W6800X Duo | hive 4 / node 2 | card A die |
-| dev2 | W6800X Duo | hive 4 / node 3 | card A die |
-| dev3 | W6800X Duo | hive 4 / node 1 | card B die |
-| dev4 | W6800X Duo | hive 4 / node 0 | card B die |
+| Metal index | Name | xGMI hive / node | peerGroupID | Notes |
+|---|---|---|---|---|
+| dev0 | AMD Radeon RX 6900 XT | — (no xGMI keys) | 0 (none) | display GPU |
+| dev1 | W6800X Duo | hive 4 / node 2 | 0x4cf5577a51a24576 | card A die |
+| dev2 | W6800X Duo | hive 4 / node 3 | 0x4cf5577a51a24576 | card A die |
+| dev3 | W6800X Duo | hive 4 / node 1 | 0x4cf5577a51a24576 | card B die |
+| dev4 | W6800X Duo | hive 4 / node 0 | 0x4cf5577a51a24576 | card B die |
 
-Module membership is inferred from PCI-id adjacency established in
-[first report §Methodology](2026-09-11-w6800x-duo-copy-paths.md):
-{dev1, dev2} are the two dies of one Duo module (Infinity Fabric Link
-jumper pair), {dev3, dev4} the other module; pairs spanning {1,2}↔{3,4}
-cross cards over the Infinity Fabric Link bridge. The API exposes no
-direct module-membership evidence; treat the pairing labels as inference.
+Module membership is inferred from PCI-id adjacency established in earlier
+captures: {dev1, dev2} are the two dies of one Duo module (Infinity Fabric
+Link jumper pair), {dev3, dev4} the other module; pairs spanning
+{1,2}↔{3,4} cross cards over the Infinity Fabric Link bridge. The Metal
+peer group covers all four hive dies; dev0 is in no peer group, so
+remote-buffer-view P2P is unavailable for it (directly evidenced: every
+dev0 p2p run emits the skip note and no rows).
 
 ## Methodology
 
-Same measurement primitives as
-[the first report](2026-09-11-w6800x-duo-copy-paths.md) (pipelined-copy
-bandwidth, dependent-chain latency, IOSurface staging peer path behind a
-coherence gate, `storageModeShared` host path). Differences:
+Two cross-device routes, both behind changing-pattern coherence gates
+(CPU-reseeded content verified after transfer, both directions):
 
-- Every visible device is swept; peer mode runs **all 10 unordered pairs**.
-  The coherence gate passed for all 10, including every cross-hive pair.
-- `if-bench` debug build (see build note).
-- No clock locking, no thermal control; single runs.
-- Caveat established while interpreting the first report: single-hop rates
-  measured by repeatedly copying the same working set (≤64 MiB fits the
-  ~128 MB Infinity Cache) are flattered by cache residency; the dependent
-  two-hop chain forces bytes end-to-end and is therefore much slower than
-  the hop rates combined. Do not read hop and chain rates as additive.
+- **p2p (default):** destination-side pull of a read-only
+  `newRemoteBufferViewForDevice:` view of the peer's private buffer into
+  the reader's own VRAM — one hop, no IOSurface. See
+  [gotchas](../metal/gotchas.md) for the read-only constraint.
+- **staging (`--peer-path both`):** one IOSurface with a texture view per
+  device; A→B is two hops (write + read) with a commit/wait each; both the
+  blit and the compute-kernel hop implementations were swept.
+
+Local bandwidth/latency and host↔GPU (`storageModeShared`) as in
+prior captures: pipelined copies for bandwidth, dependent copy chains for
+latency, sizes 4 KiB → 64 MiB by default. No clock locking, no thermal
+control; single runs per configuration.
+
+**Caveats:** repeated same-buffer transfers (working set ≤64 MiB vs the
+~128 MB Infinity Cache) are cache-flattered on every route — treat plateau
+rates as same-buffer upper bounds. dev0 carries the display server. Host
+totals include the CPU pass (approximation, labelled as such by the tool).
 
 ## Results
 
-### Local VRAM copy (device → own VRAM), blit, GB/s
+### Peer-group P2P (default peer route), GB/s per pull
 
-| Size | dev0 6900XT | dev1 | dev2 | dev3 | dev4 |
-|---|---|---|---|---|---|
-| 1 MiB | 0.6 | 1.7 | 1.9 | 1.9 | 1.5 |
-| 2 MiB | 0.8 | 5.5 | 6.8 | 7.2 | 5.1 |
-| 4 MiB | 14.4 | 15.1 | 17.5 | 16.4 | 14.3 |
-| 8 MiB | 37.5 | 36.9 | 37.1 | 39.1 | 41.4 |
-| 16 MiB | 60.6 | 52.0 | 49.4 | 55.5 | 54.0 |
-| 32 MiB | 79.9 | 66.2 | 63.8 | 66.0 | 62.5 |
-| 64 MiB | **81.6** | 71.8 | **73.3** | **73.4** | 72.0 |
+Blit pulls, range = the pair's two directions; `k` = compute-kernel pulls
+of the same views. All 6/6 in-hive pairs passed the changing-pattern gate
+both directions; the 4 dev0 pairs skipped (no shared peer group).
 
-Kernel-path peaks: 58.8 (dev0) / 63.6–69.1 GB/s (Duo dies). The four Duo
-dies are statistically identical; the 6900 XT peaks slightly higher at
-32–64 MiB despite its worse small-size ramp.
-
-Local dependent-copy latency, 4 KiB / 64 KiB / 1 MiB (µs/copy):
-
-| | 4 KiB | 64 KiB | 1 MiB |
-|---|---|---|---|
-| dev0 6900XT | 33.5 | 21.1 | 30.3 |
-| dev1–dev4 (Duo dies) | 3.9–10.8 | 3.9–4.0 | 5.9–6.1 |
-
-(dev1's 4 KiB point, 10.8 µs, is the outlier of an otherwise-tight 3.9–4.0
-µs cluster; dev0's latency is 3–8× the Duo dies and noisy — possibly
-display-queue interference, unconfirmed.)
-
-### Peer path within the xGMI hive (6 pairs)
-
-Peak rates over the 4 KiB–64 MiB sweep; "2 hops" is the dependent
-A→staging→B chain (GB/s at 128 MiB-total transfer, i.e. counting both
-hops' bytes):
-
-| Pair | Relation* | write hop | read hop | A→B | B→A | lat @4 KiB (µs/hop) |
+| Pair | Link | 1 MiB | 8 MiB | 32 MiB | 64 MiB | 64 MiB k |
 |---|---|---|---|---|---|---|
-| dev1↔dev2 | jumper (same module) | 24.7 / 23.8 | 98.0 / 101.1 | 8.7 | 8.6 | 150.6 |
-| dev3↔dev4 | jumper (same module) | 25.8 / 24.6 | 97.4 / 93.0 | 8.9 | 8.8 | 129.6 |
-| dev1↔dev3 | bridge (cross-card) | 24.9 / 25.7 | 101.2 / 105.2 | 8.8 | 8.9 | 139.9 |
-| dev1↔dev4 | bridge (cross-card) | 23.7 / 24.7 | 102.9 / 96.0 | 8.9 | 8.6 | 160.8 |
-| dev2↔dev3 | bridge (cross-card) | 25.0 / 25.4 | 103.4 / 104.5 | 8.9 | 8.8 | 132.6 |
-| dev2↔dev4 | bridge (cross-card) | 24.9 / 24.6 | 101.9 / 98.2 | 8.9 | 8.8 | 121.4 |
+| dev1↔2 | jumper | 32.4–34.1 | 35.1–36.1 | 37.9–38.0 | 38.1–38.3 | 37.2–37.5 |
+| dev3↔4 | jumper | 31.9–35.2 | 36.5–36.7 | 38.2–38.3 | **38.4–38.8** | 37.7–37.8 |
+| dev1↔3 | bridge | 33.6–34.3 | 32.1–35.7 | 37.0–37.4 | 37.5–37.8 | 36.6–36.9 |
+| dev1↔4 | bridge | 31.0–32.9 | 33.8–35.4 | 36.0–36.6 | 37.0–37.1 | 34.0–35.6 |
+| dev2↔3 | bridge | 31.6–33.7 | 34.6–35.2 | 36.3–36.6 | 36.8–37.0 | 35.7–36.0 |
+| dev2↔4 | bridge | 32.8–34.1 | 32.2–35.5 | 37.0–37.1 | 37.4–37.7 | 36.8–37.1 |
 
-\* inferred from PCI adjacency, see device table note.
+Full-size curve (min–max GB/s across the six pairs, both directions):
 
-All six hive pairs are indistinguishable: ~24–26 GB/s write hop,
-~93–105 GB/s read hop, 8.6–8.9 GB/s end-to-end, ~120–160 µs/hop.
-Jumper (same-module) and bridge (cross-card) pairs are equal within noise —
-extending the first report's two-pair finding to the full 6-pair matrix.
-
-### Peer path across the hive boundary (6900 XT ↔ Duo dies, 4 pairs)
-
-| Pair | write hop (6900XT / Duo) | read hop (6900XT / Duo) | 6900→Duo | Duo→6900 | lat @4 KiB (µs/hop) |
-|---|---|---|---|---|---|
-| dev0↔dev1 | 36.2 / 23.7 | 110.2 / 100.0 | 3.4 | 1.6 | 373.8 |
-| dev0↔dev2 | 35.7 / 24.8 | 104.3 / 99.0 | 3.3 | 2.9 | 5 744.3 † |
-| dev0↔dev3 | 36.3 / 25.2 | 103.6 / 103.1 | 3.7 | 2.5 | 350.9 |
-| dev0↔dev4 | 36.8 / 24.0 | 89.9 / 99.6 | 3.5 | 2.4 | 550.9 |
-
-† pair dev0↔dev2's 4 KiB point is itself an outlier (5 744 µs vs 343–551 µs
-on the other three pairs), and pair dev0↔dev1 hits 8 134 µs/hop at 1 MiB —
-cross-hive latency numbers are wildly unstable, unlike the tight hive band.
-
-Each isolated hop looks *normal* (the 6900 XT even writes faster than the
-Duo dies), yet the dependent chain drops to 1.6–3.7 GB/s — well below the
-hive band's 8.6–8.9 — and is **asymmetric**: moving data *to* the 6900 XT
-is ~1.5–2× slower than moving it *from* the 6900 XT. *Inference (low
-confidence):* staging pages are placed in the hive's GPU memory (first
-report's finding), so every cross-hive hop adds a PCIe round-trip under
-the driver's coherence handling; the exact mechanism is not observable via
-the API and was not isolated.
-
-### Host ↔ GPU (shared buffers, 64 MiB totals incl. CPU pass)
-
-| Direction | dev0 | dev1 | dev2 | dev3 | dev4 |
-|---|---|---|---|---|---|
-| host→dev (total) | 1.0 | 8.1 | 5.2 | 8.3 | 5.5 |
-| dev→host (total) | 0.5 | 0.7 | 0.8 | 0.7 | 0.8 |
-
-Rough approximations (method labeled as such in tool output); these vary
-substantially between runs and should not be quoted as PCIe limits.
-
-### Metal API overhead (`mtl-bench`, ns/op)
-
-| Benchmark | dev0 6900XT | Duo dies (range) |
+| Size | blit pull | kernel pull |
 |---|---|---|
-| commandBuffer.alloc | 2 140 | 2 072–2 206 |
-| commandBuffer.commit (empty) | 10 773 | 10 162–10 338 |
-| blitEncoder create+end | 3 269 | 3 061–3 288 |
-| blit.copy 64 B | 20 836 | 14 128–14 886 |
-| blit.copy 1 KiB | 47 906 | 10 508–11 758 |
-| blit.copy 64 KiB | 28 154 | 10 409–12 393 |
-| blit.copy 1 MiB | 25 943 | 10 860–12 427 |
-| renderPass setup (64×64 clear) | 14 241 | 13 795–14 087 |
-| kernel dispatch (encode only) | 914 | 866–884 |
-| kernel dispatch (encode+commit) | **141 146** | 23 382–25 682 |
+| 4 KiB | 1.5–2.3 | 0.3–0.4 |
+| 64 KiB | 17.8–19.4 | 4.4–5.6 |
+| 256 KiB | 27.1–29.5 | 14.5–15.2 |
+| 1 MiB | 31.0–35.2 | 23.2–25.9 |
+| 8 MiB | 32.1–36.7 | 32.4–34.4 |
+| 64 MiB | 36.8–38.8 | 34.0–37.8 |
 
-Command-buffer/encoder primitives are identical across devices, but the
-6900 XT pays 2–5× on small blit copies and ~6× on committed dispatches.
-Because this device also serves the window server, contention is a likely
-contributor (inference); a run with displays on the Duo side would
-disentangle silicon vs. contention.
+### IOSurface staging fallback (two hops), GB/s chains @64 MiB
 
-### Addendum (same day): hive peer sweep extended past 64 MiB
+| Pair set | blit chain | kernel chain | latency @4 KiB (µs/hop) |
+|---|---|---|---|
+| In-hive (all 6 pairs) | 8.3–8.6 | 9.7–10.2 | 121–148 |
+| Cross-hive (dev0 ↔ hive, 4 pairs) | 2.0–4.0 | 1.3–2.9 | 296–4 999 |
 
-Follow-up run on one hive pair (dev3↔dev4, blit, Release build):
-`tools/.build/release/if-bench --device-a 3 --device-b 4 --mode peer
---path blit --min-size 16777216 --max-size 268435456 --json`
-(raw: `raw/2026-09-11-matrix-peer3-4-extended.json`):
+Isolated hops at 64 MiB (sample, dev1↔2 and dev3↔4): blit writes 24–25,
+blit reads 88–106, kernel-driven hops 106–192 GB/s — five times above the
+PCIe Gen3 x16 ceiling, confirming staging pages are GPU-resident and that
+the two-hop chain ceiling (~10 GB/s) sits in the cross-device
+commit/visibility step, not the hop engines.
 
-| Buffer/hop | 2-hop A→B (GB/s) | 2-hop B→A | write hop | read hop |
-|---|---|---|---|---|
-| 16 MiB | 8.24 | 8.24 | 21–22 | 72–83 |
-| 32 MiB | 8.72 | 8.66 | 23–25 | 86–98 |
-| 64 MiB | 8.95 | 8.88 | 25–26 | 103–106 |
-| 128 MiB | 9.07 | 9.00 | 25–27 | 99–102 |
-| 256 MiB | 9.12 | 9.08 | 25–27 | 100–106 |
+### Local VRAM copy (device → own VRAM), 64 MiB-class peaks
 
-The 2-hop chain **saturates at ≈ 9.1 GB/s around 128–256 MiB** (increments
-per doubling: 0.47, 0.23, 0.12, 0.05 GB/s). Because a 256 MiB working set
-exceeds the ~128 MB Infinity Cache yet the rate holds (rather than drops),
-the staging chain is not cache-bound at saturation. An earlier reading
-that attributed the ceiling to the slow write hop was **superseded the
-same day by Addendum 2** below: kernel-driven hops are ~8× faster in
-isolation yet the chain plateaus near 11 GB/s. (Required fix: `Staging`
-sizes its IOSurface within the 16 384 px texture limit; regions beyond
-256 MiB are now skipped instead of asserting.)
+| Device | blit peak GB/s | kernel peak GB/s | latency @4 KiB (µs/copy) |
+|---|---|---|---|
+| dev0 (6900 XT, display) | 86.2 | 3.4 ⚠ | 33.6 |
+| dev1 | 70.3 | 67.2 | 4.05 |
+| dev2 | 73.6 | 68.1 | 4.28 |
+| dev3 | 73.9 | 69.2 | 3.87 |
+| dev4 | 74.3 | 68.1 | 3.88 |
 
-### Addendum 2 (same day): kernel-driven staging hops (`--peer-path`)
+⚠ dev0's kernel-local numbers collapsed to single-digit GB/s in this
+capture — the only run on the display GPU; treat as display-load noise
+(window server preempting compute queues), not a hardware property. The
+Duo dies' 3.9–4.3 µs/copy floor vs dev0's 33.6 µs is consistent with the
+6900 XT's known small-submission overhead (below).
 
-Added a compute-kernel hop implementation (write kernel stores into the
-IOSurface texture view via `access::write`, read kernel via `access::read`;
-byte payload round-trips losslessly through unorm8) and a per-path
-coherence gate. Command:
-`tools/.build/release/if-bench --device-a 3 --device-b 4 --mode peer
---peer-path both --path blit --min-size 16777216 --max-size 268435456
---json` (raw: `raw/2026-09-11-matrix-peer3-4-kernel-vs-blit.json`).
-Both coherence gates (blit and kernel) passed. Peak rates:
+### Host ↔ GPU (shared buffers, 64 MiB, GB/s incl. CPU pass)
 
-| Buffer/hop | chain blit | chain kernel | write hop blit | write hop kernel | read hop blit | read hop kernel |
-|---|---|---|---|---|---|---|
-| 16 MiB | 8.3 | 9.7 | 21–24 | 87–98 | 76 | 97–104 |
-| 64 MiB | 8.9 | 10.7 | 25–26 | 163–176 | 100–107 | 174–177 |
-| 256 MiB | 9.1 | **11.0** | 25–27 | **197–200** | 103–107 | **200–202** |
+dev3 37.9, dev1 23.9, dev2 22.7, dev4 6.1, dev0 5.0. Highly variable
+run-to-run (this route was always the noisiest); quote only as ranges.
 
-(chain columns are A→B; B→A within 0.1 GB/s)
+### Metal API overhead (`mtl-bench`, ns/op, Release)
 
-- **The blit buffer↔IOSurface path, not the memory system, is what makes
-  isolated write hops look slow.** A shader touching the same pages moves
-  up to ~200 GB/s (256 MiB, still climbing) — 8× the blit hop.
-- **Yet the dependent chain only rises 9.1 → 11.0 GB/s.** The chain
-  ceiling therefore sits in the cross-device staging step (making A's
-  writes visible to B), which neither hop implementation can accelerate.
-  ~11 GB/s is the current best-measured cross-device staging-route
-  ceiling on this hive pair.
-- Kernel hop rates near 200 GB/s at 256 MiB — five times above the PCIe
-  ceiling — independently reconfirm staging pages are GPU-resident when
-  touched by the GPU that measures them in isolation.
+| Op | dev0 (6900 XT) | dev1–dev4 (Duo dies) |
+|---|---|---|
+| commandBuffer.alloc | 2 096 | 2 013–2 174 |
+| commandBuffer.commit.empty | 10 000 | 9 937–10 086 |
+| blit.copy.64B (pipelined) | 46 841 | 14 446–16 358 |
 
-**Confirmation pairs** (same command, `--device-a 1 --device-b 2` and
-`--device-a 0 --device-b 3`; raw:
-`raw/2026-09-11-matrix-peer1-2-kernel-vs-blit.json`,
-`raw/2026-09-11-matrix-peer0-3-kernel-vs-blit.json`):
-
-- **Jumper pair dev1↔dev2 (same module): pattern reproduces.** Blit chain
-  ≈ 8.8 GB/s, kernel chain ≈ 10.7 GB/s at 128–256 MiB; kernel hops again
-  reach ~190–200 GB/s in isolation. Small-size kernel-chain points are
-  noisy (6.2 GB/s at 16 MiB on one direction).
-- **Cross-hive pair dev0↔dev3: kernel hops do not help.** Chains stay at
-  ~0.5–3.1 GB/s (blit ~3.5 GB/s A→B), with extreme run-to-run variance —
-  the 6900 XT's own hop rates swing from 2.7 to 129 GB/s between adjacent
-  sweep sizes (display-server load on that device is a suspect).
-  Kernel hops on the Duo side still hit ~200 GB/s. The cross-hive penalty
-  sits at the hive boundary itself, independent of hop engine.
+Unlike the earlier debug-build capture, empty-commit cost is now uniform
+across devices; the 6900 XT's penalty concentrates in small submitted
+copies (~3× the Duo dies), consistent with display-server interference.
 
 ## Raw data
 
-27 JSON captures under [`raw/`](raw/), prefix `2026-09-11-matrix-`:
-`gpu-probe`, `devices`, `if-bench-dev{0..4}`,
-`if-bench-peer{A}-{B}` (all 10 pairs), `mtl-bench-dev{0..4}`,
-plus `if-bench-peer3-4-extended.json` and
-`if-bench-peer{3-4,1-2,0-3}-kernel-vs-blit.json`.
-Progress log: `build/results/run.progress.log` (not archived).
+32 JSON captures under [`raw/`](raw/), prefix `2026-09-11-matrix-`:
+`gpu-probe`, `if-bench-devices`, `if-bench-dev{0..4}`,
+`mtl-bench-dev{0..4}`, `if-bench-peer-p2p-{A}-{B}` (all 10 pairs; dev0
+pairs contain the skip note and no rows),
+`if-bench-peer-both-{A}-{B}` (all 10 pairs, staging blit+kernel).
 
 ## Conclusions
 
-- **Within the xGMI hive, the staging route is uniform regardless of
-  topology**: jumper and bridge pairs all measure 8.6–8.9 GB/s and
-  ~120–160 µs/hop. With 6/6 pairs agreeing, the first report's "no
-  measurable Infinity Fabric Link bridge benefit via this route" now has
-  full-matrix support.
-- **Cross-hive (xGMI hive ↔ plain-PCIe card) peer transfers are the weak
-  path**: 2-hop chains collapse to 1.6–3.7 GB/s with direction asymmetry
-  and unstable latency (343–5 744 µs/hop) even though each hop measured in
-  isolation looks healthy. Designs that share buffers between an MPX hive
-  and a non-hive GPU on this OS should expect this route to be unusable
-  for bulk or latency-sensitive work (see `docs/metal/gotchas.md`).
-- **Local copy ceilings cluster at 62–82 GB/s across three different
-  RDNA2 parts**, reinforcing that the local-copy ceiling is a macOS
-  driver/GPU-path property, not Duo-specific. The 6900 XT's advantage at
-  32–64 MiB is unexplained; display load makes its small-size and latency
-  numbers suspect.
-- **API overhead is device-dependent on small submissions** (dispatch
-  commit 141 µs vs ~24 µs) — measure per-device, don't assume the
-  system-default device is representative.
-- Single debug-build runs; before quoting marginal differences, re-run in
-  Release with clocks steady and displays disconnected from the measured
-  GPU.
+- **Within the xGMI hive, peer-group P2P is the cross-device route:**
+  36.8–38.8 GB/s on all six pairs at one hop, ~4× the best two-hop staging
+  chain (~10 GB/s), with the Infinity Fabric Link jumper showing only a
+  small (~1–1.5 GB/s) and consistent edge over the bridge. Coherence held
+  under changing patterns in both directions on every pair.
+- **The staging route remains the only cross-device mechanism outside a
+  peer group** — and it is bad there: cross-hive chains measure 1.3–4.0
+  GB/s with latency to 5 ms/hop. Design for P2P inside hives and treat
+  hive↔non-hive GPU sharing as PCIe-class at best.
+- **Peer group == xGMI hive** is directly evidenced: four hive dies share
+  one non-zero `peerGroupID`, the non-hive card reports 0 and nil views;
+  the tool gates on this and skips cleanly.
+- **Staging ceilings are protocol-bound, not engine-bound:** kernel-driven
+  isolated hops still reach 106–192 GB/s (GPU-resident staging pages),
+  while the two-hop chain stays ~10 GB/s on the fresh Release capture —
+  reproducing the earlier debug-build finding.
+- Local copy peaks cluster at 70–74 GB/s across Duo dies; Duo
+  small-copy latency (≈4 µs) is ~8× better than the display-attached
+  6900 XT (≈34 µs).

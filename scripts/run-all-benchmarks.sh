@@ -5,12 +5,15 @@
 # results.
 #
 # Runtime note: the per-pair peer matrix is by far the longest part (several
-# minutes per pair). Set PEER=0 to skip it, MTL_BENCH=0 to skip mtl-bench.
+# minutes per pair). Set PEER=0 to skip the pairwise matrix, PEER_PATH to
+# override the route (default p2p; use e.g. 'both' for the legacy IOSurface
+# staging matrix), MTL_BENCH=0 to skip mtl-bench.
 set -eu
 cd "$(dirname "$0")/.."
 mkdir -p build/results
 
 PEER=${PEER:-1}
+PEER_PATH=${PEER_PATH:-p2p}
 MTL_BENCH=${MTL_BENCH:-1}
 RUN="swift run --package-path tools"
 
@@ -33,17 +36,20 @@ while [ "$d" -lt "$device_count" ]; do
   d=$((d + 1))
 done
 
-# Pairwise peer matrix over all unordered device pairs. With a mixed hive
-# (e.g. MPX GPUs + a non-hive eGPU) this covers same-hive and cross-hive
-# pairs; each run's coherence gate decides whether the route is usable.
+# Pairwise peer matrix over all unordered device pairs. Default route is
+# peer-group p2p (fastest on MPX hives; pairs outside a common peer group
+# note-and-skip inside the tool). Set PEER_PATH=blit (or both/all) to sweep
+# the IOSurface staging route instead — that is the fallback for cross-hive
+# pairs and where the published staging numbers come from.
 if [ "$PEER" = "1" ]; then
   a=0
   while [ "$a" -lt "$device_count" ]; do
     b=$((a + 1))
     while [ "$b" -lt "$device_count" ]; do
-      echo "==> if-bench peer dev$a <-> dev$b"
-      $RUN if-bench -- --device-a "$a" --device-b "$b" --mode peer --json \
-          > build/results/if-bench-peer"$a"-"$b".json
+      echo "==> if-bench peer ($PEER_PATH) dev$a <-> dev$b"
+      $RUN if-bench -- --device-a "$a" --device-b "$b" --mode peer \
+          --peer-path "$PEER_PATH" --json \
+          > build/results/if-bench-peer-"$PEER_PATH"-"$a"-"$b".json
       b=$((b + 1))
     done
     a=$((a + 1))
