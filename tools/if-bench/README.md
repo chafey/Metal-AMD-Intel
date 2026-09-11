@@ -30,8 +30,10 @@ dependent copy chains. Sizes sweep 4 KiB → 64 MiB by default (`--min-size`
 mode (default blit; the kernel hop is a compute kernel reading/writing the
 IOSurface texture view; each path gets its own coherence gate; latency
 rows are blit-only). On the 2026-09-11 capture kernel hops move ~8× more
-bytes in isolation, but the two-hop chain plateaus at ~11 GB/s either
-way — the ceiling is the cross-device staging step, not the hop engine.
+bytes in isolation, but within one xGMI hive the two-hop chain plateaus at
+~11 GB/s either way — the ceiling is the cross-device staging step, not
+the hop engine. Cross-hive pairs (e.g. hive member ↔ plain-PCIe GPU) stay
+at ~3 GB/s with either hop implementation; see `docs/metal/gotchas.md`.
 `--device-b` is optional: without it, `bw`/`latency`/`host` run on
 `--device-a` only, while `peer`/`concurrent` are skipped with a note.
 `scripts/run-all-benchmarks.sh` uses this to sweep every device

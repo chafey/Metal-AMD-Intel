@@ -227,13 +227,29 @@ Both coherence gates (blit and kernel) passed. Peak rates:
   ceiling — independently reconfirm staging pages are GPU-resident when
   touched by the GPU that measures them in isolation.
 
+**Confirmation pairs** (same command, `--device-a 1 --device-b 2` and
+`--device-a 0 --device-b 3`; raw:
+`raw/2026-09-11-matrix-peer1-2-kernel-vs-blit.json`,
+`raw/2026-09-11-matrix-peer0-3-kernel-vs-blit.json`):
+
+- **Jumper pair dev1↔dev2 (same module): pattern reproduces.** Blit chain
+  ≈ 8.8 GB/s, kernel chain ≈ 10.7 GB/s at 128–256 MiB; kernel hops again
+  reach ~190–200 GB/s in isolation. Small-size kernel-chain points are
+  noisy (6.2 GB/s at 16 MiB on one direction).
+- **Cross-hive pair dev0↔dev3: kernel hops do not help.** Chains stay at
+  ~0.5–3.1 GB/s (blit ~3.5 GB/s A→B), with extreme run-to-run variance —
+  the 6900 XT's own hop rates swing from 2.7 to 129 GB/s between adjacent
+  sweep sizes (display-server load on that device is a suspect).
+  Kernel hops on the Duo side still hit ~200 GB/s. The cross-hive penalty
+  sits at the hive boundary itself, independent of hop engine.
+
 ## Raw data
 
-25 JSON captures under [`raw/`](raw/), prefix `2026-09-11-matrix-`:
+27 JSON captures under [`raw/`](raw/), prefix `2026-09-11-matrix-`:
 `gpu-probe`, `devices`, `if-bench-dev{0..4}`,
 `if-bench-peer{A}-{B}` (all 10 pairs), `mtl-bench-dev{0..4}`,
 plus `if-bench-peer3-4-extended.json` and
-`if-bench-peer3-4-kernel-vs-blit.json`.
+`if-bench-peer{3-4,1-2,0-3}-kernel-vs-blit.json`.
 Progress log: `build/results/run.progress.log` (not archived).
 
 ## Conclusions

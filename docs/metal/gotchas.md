@@ -64,7 +64,9 @@ symptom, affected configuration, workaround, and OS/driver version observed.
   (vs 8.6–8.9 GB/s between hive members) even though each single hop
   measures normally in isolation; direction-asymmetric (to the non-hive
   card is slower) and dependent-chain latency is unstable (343–5 744
-  µs/hop vs ~120–160 µs/hop within the hive)
+  µs/hop vs ~120–160 µs/hop within the hive). Switching the hop
+  implementation to a compute kernel (`--peer-path kernel`) does not
+  improve it — the penalty sits at the hive boundary, not the hop engine
 - **Repro:** `swift run --package-path tools if-bench -- --device-a <hive-die>
   --device-b <non-hive-gpu> --mode peer --json` (see
   `docs/benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md`)

@@ -1,0 +1,591 @@
+{
+  "devices" : [
+    {
+      "index" : 0,
+      "name" : "AMD Radeon RX 6900 XT",
+      "pciRegistryEntryID" : "0x0000000100000747",
+      "pciService" : "display",
+      "recommendedMaxWorkingSetSize" : 17163091968,
+      "registryIDHex" : "0x0000000100000cf6"
+    },
+    {
+      "index" : 1,
+      "infinityFabricLinks" : "1",
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "pciRegistryEntryID" : "0x00000001000007b9",
+      "pciService" : "GFX0",
+      "recommendedMaxWorkingSetSize" : 34342961152,
+      "registryIDHex" : "0x0000000100000d1a",
+      "xgmiEnabled" : "1",
+      "xgmiHiveSize" : "4",
+      "xgmiNodeIndex" : "2"
+    },
+    {
+      "index" : 2,
+      "infinityFabricLinks" : "1",
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "pciRegistryEntryID" : "0x00000001000007b5",
+      "pciService" : "GFX0",
+      "recommendedMaxWorkingSetSize" : 34342961152,
+      "registryIDHex" : "0x0000000100000d00",
+      "xgmiEnabled" : "1",
+      "xgmiHiveSize" : "4",
+      "xgmiNodeIndex" : "3"
+    },
+    {
+      "index" : 3,
+      "infinityFabricLinks" : "1",
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "pciRegistryEntryID" : "0x00000001000006d4",
+      "pciService" : "GFX0",
+      "recommendedMaxWorkingSetSize" : 34342961152,
+      "registryIDHex" : "0x0000000100000cfb",
+      "xgmiEnabled" : "1",
+      "xgmiHiveSize" : "4",
+      "xgmiNodeIndex" : "1"
+    },
+    {
+      "index" : 4,
+      "infinityFabricLinks" : "1",
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "pciRegistryEntryID" : "0x00000001000006d8",
+      "pciService" : "GFX0",
+      "recommendedMaxWorkingSetSize" : 34342961152,
+      "registryIDHex" : "0x0000000100000ccb",
+      "xgmiEnabled" : "1",
+      "xgmiHiveSize" : "4",
+      "xgmiNodeIndex" : "0"
+    }
+  ],
+  "machine" : {
+    "amdDrivers" : {
+      "AMDFramebuffer.kext" : "7.0.1",
+      "AMDRadeonServiceManager.kext" : "7.0.1",
+      "AMDRadeonVADriver.bundle" : "7.0.1",
+      "AMDRadeonVADriver2.bundle" : "7.0.1",
+      "AMDRadeonX4000.kext" : "7.0.1",
+      "AMDRadeonX4000GLDriver.bundle" : "7.0.1",
+      "AMDRadeonX4000HWServices.kext" : "7.0.1",
+      "AMDRadeonX5000.kext" : "7.0.1",
+      "AMDRadeonX5000GLDriver.bundle" : "7.0.1",
+      "AMDRadeonX5000HWServices.kext" : "7.0.1",
+      "AMDRadeonX5000MTLDriver.bundle" : "7.0.1",
+      "AMDRadeonX5000Shared.bundle" : "0.0.0",
+      "AMDRadeonX6000.kext" : "7.0.1",
+      "AMDRadeonX6000Framebuffer.kext" : "7.0.1",
+      "AMDRadeonX6000GLDriver.bundle" : "7.0.1",
+      "AMDRadeonX6000HWServices.kext" : "7.0.1",
+      "AMDRadeonX6000MTLDriver.bundle" : "7.0.1",
+      "AMDRadeonX6000Shared.bundle" : "0.0.0",
+      "IOAcceleratorFamily2.kext" : "487.4.3"
+    },
+    "arch" : "x86_64",
+    "cpu" : "Intel(R) Xeon(R) W-3245 CPU @ 3.20GHz",
+    "cpuCores" : 32,
+    "macOS" : "26.6.2",
+    "memoryBytes" : 206158430208,
+    "model" : "MacPro7,1",
+    "osBuild" : "25G83"
+  },
+  "notes" : [
+    "peer = two-hop path via one IOSurface staging region (A->staging + staging->B, blit hop implementation); the API does not reveal whether staging pages are host-resident or IF-migrated — interpret peer numbers as 'best cross-device path available to Metal', not as raw link bandwidth",
+    "peer = two-hop path via one IOSurface staging region (A->staging + staging->B, kernel hop implementation); the API does not reveal whether staging pages are host-resident or IF-migrated — interpret peer numbers as 'best cross-device path available to Metal', not as raw link bandwidth"
+  ],
+  "options" : {
+    "deviceA" : 0,
+    "deviceB" : 3,
+    "maxSize" : 268435456,
+    "minSize" : 16777216,
+    "modes" : [
+      "peer"
+    ],
+    "paths" : [
+      "blit"
+    ],
+    "peerPath" : "both"
+  },
+  "results" : [
+    {
+      "copyPath" : "blit",
+      "direction" : "dev0->staging",
+      "gbytesPerSecond" : 8.3599999999999994,
+      "kind" : "bandwidth",
+      "seconds" : 0.0020058077500000001,
+      "sizeBytes" : 16777216
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "staging->dev0",
+      "gbytesPerSecond" : 52.609999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.0003189205,
+      "sizeBytes" : 16777216
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev3->staging",
+      "gbytesPerSecond" : 23.100000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 0.00072617725000000003,
+      "sizeBytes" : 16777216
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "staging->dev3",
+      "gbytesPerSecond" : 79.310000000000002,
+      "kind" : "bandwidth",
+      "seconds" : 0.00021154649999999999,
+      "sizeBytes" : 16777216
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev0->dev3 (2 hops)",
+      "gbytesPerSecond" : 3.1499999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.01066453125,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev3->dev0 (2 hops)",
+      "gbytesPerSecond" : 0.37,
+      "kind" : "bandwidth",
+      "seconds" : 0.090078971999999993,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev0->staging",
+      "gbytesPerSecond" : 34.810000000000002,
+      "kind" : "bandwidth",
+      "seconds" : 0.00096395349999999999,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "staging->dev0",
+      "gbytesPerSecond" : 87.170000000000002,
+      "kind" : "bandwidth",
+      "seconds" : 0.00038492350000000002,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev3->staging",
+      "gbytesPerSecond" : 25.030000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 0.0013406189999999999,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "staging->dev3",
+      "gbytesPerSecond" : 92.890000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 0.00036121325000000002,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev0->dev3 (2 hops)",
+      "gbytesPerSecond" : 3.2999999999999998,
+      "kind" : "bandwidth",
+      "seconds" : 0.020341334749999999,
+      "sizeBytes" : 67108864
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev3->dev0 (2 hops)",
+      "gbytesPerSecond" : 0.93000000000000005,
+      "kind" : "bandwidth",
+      "seconds" : 0.071825069249999998,
+      "sizeBytes" : 67108864
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev0->staging",
+      "gbytesPerSecond" : 36.219999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.0018526167499999999,
+      "sizeBytes" : 67108864
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "staging->dev0",
+      "gbytesPerSecond" : 117.89,
+      "kind" : "bandwidth",
+      "seconds" : 0.00056924924999999995,
+      "sizeBytes" : 67108864
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev3->staging",
+      "gbytesPerSecond" : 25.850000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 0.0025959149999999999,
+      "sizeBytes" : 67108864
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "staging->dev3",
+      "gbytesPerSecond" : 103.98999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.00064537049999999999,
+      "sizeBytes" : 67108864
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev0->dev3 (2 hops)",
+      "gbytesPerSecond" : 3.5,
+      "kind" : "bandwidth",
+      "seconds" : 0.038382317249999999,
+      "sizeBytes" : 134217728
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev3->dev0 (2 hops)",
+      "gbytesPerSecond" : 1.0700000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 0.12493358675000001,
+      "sizeBytes" : 134217728
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev0->staging",
+      "gbytesPerSecond" : 38.630000000000003,
+      "kind" : "bandwidth",
+      "seconds" : 0.0034740672499999998,
+      "sizeBytes" : 134217728
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "staging->dev0",
+      "gbytesPerSecond" : 130.55000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 0.00102808175,
+      "sizeBytes" : 134217728
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev3->staging",
+      "gbytesPerSecond" : 26.52,
+      "kind" : "bandwidth",
+      "seconds" : 0.0050606669999999996,
+      "sizeBytes" : 134217728
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "staging->dev3",
+      "gbytesPerSecond" : 105.12,
+      "kind" : "bandwidth",
+      "seconds" : 0.0012768415000000001,
+      "sizeBytes" : 134217728
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev0->dev3 (2 hops)",
+      "gbytesPerSecond" : 3.54,
+      "kind" : "bandwidth",
+      "seconds" : 0.075860852749999999,
+      "sizeBytes" : 268435456
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev3->dev0 (2 hops)",
+      "gbytesPerSecond" : 2.2599999999999998,
+      "kind" : "bandwidth",
+      "seconds" : 0.11878609225,
+      "sizeBytes" : 268435456
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev0->staging",
+      "gbytesPerSecond" : 38.859999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.0069080799999999996,
+      "sizeBytes" : 268435456
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "staging->dev0",
+      "gbytesPerSecond" : 138.34,
+      "kind" : "bandwidth",
+      "seconds" : 0.00194043775,
+      "sizeBytes" : 268435456
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev3->staging",
+      "gbytesPerSecond" : 26.59,
+      "kind" : "bandwidth",
+      "seconds" : 0.0100942785,
+      "sizeBytes" : 268435456
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "staging->dev3",
+      "gbytesPerSecond" : 106.63,
+      "kind" : "bandwidth",
+      "seconds" : 0.0025174697500000001,
+      "sizeBytes" : 268435456
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev0->dev3 (2 hops)",
+      "gbytesPerSecond" : 3.48,
+      "kind" : "bandwidth",
+      "seconds" : 0.15438640100000001,
+      "sizeBytes" : 536870912
+    },
+    {
+      "copyPath" : "blit",
+      "direction" : "dev3->dev0 (2 hops)",
+      "gbytesPerSecond" : 2.7000000000000002,
+      "kind" : "bandwidth",
+      "seconds" : 0.19896713525000001,
+      "sizeBytes" : 536870912
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev0->staging",
+      "gbytesPerSecond" : 75.180000000000007,
+      "kind" : "bandwidth",
+      "seconds" : 0.00022316624999999999,
+      "sizeBytes" : 16777216
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "staging->dev0",
+      "gbytesPerSecond" : 44.409999999999997,
+      "kind" : "bandwidth",
+      "seconds" : 0.00037776524999999999,
+      "sizeBytes" : 16777216
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev3->staging",
+      "gbytesPerSecond" : 83.200000000000003,
+      "kind" : "bandwidth",
+      "seconds" : 0.00020164624999999999,
+      "sizeBytes" : 16777216
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "staging->dev3",
+      "gbytesPerSecond" : 61.079999999999998,
+      "kind" : "bandwidth",
+      "seconds" : 0.00027467749999999998,
+      "sizeBytes" : 16777216
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev0->dev3 (2 hops)",
+      "gbytesPerSecond" : 0.54000000000000004,
+      "kind" : "bandwidth",
+      "seconds" : 0.061746994499999999,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev3->dev0 (2 hops)",
+      "gbytesPerSecond" : 0.34999999999999998,
+      "kind" : "bandwidth",
+      "seconds" : 0.094995891750000006,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev0->staging",
+      "gbytesPerSecond" : 2.7200000000000002,
+      "kind" : "bandwidth",
+      "seconds" : 0.012355066499999999,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "staging->dev0",
+      "gbytesPerSecond" : 135.69,
+      "kind" : "bandwidth",
+      "seconds" : 0.00024729100000000001,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev3->staging",
+      "gbytesPerSecond" : 104.47,
+      "kind" : "bandwidth",
+      "seconds" : 0.00032119949999999999,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "staging->dev3",
+      "gbytesPerSecond" : 121.09999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.00027706975,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev0->dev3 (2 hops)",
+      "gbytesPerSecond" : 1.3999999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.047907832249999997,
+      "sizeBytes" : 67108864
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev3->dev0 (2 hops)",
+      "gbytesPerSecond" : 2.1000000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 0.031954640249999999,
+      "sizeBytes" : 67108864
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev0->staging",
+      "gbytesPerSecond" : 38.420000000000002,
+      "kind" : "bandwidth",
+      "seconds" : 0.0017465689999999999,
+      "sizeBytes" : 67108864
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "staging->dev0",
+      "gbytesPerSecond" : 178.75,
+      "kind" : "bandwidth",
+      "seconds" : 0.00037542575000000002,
+      "sizeBytes" : 67108864
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev3->staging",
+      "gbytesPerSecond" : 172.87,
+      "kind" : "bandwidth",
+      "seconds" : 0.00038821474999999999,
+      "sizeBytes" : 67108864
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "staging->dev3",
+      "gbytesPerSecond" : 183.72,
+      "kind" : "bandwidth",
+      "seconds" : 0.00036528525,
+      "sizeBytes" : 67108864
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev0->dev3 (2 hops)",
+      "gbytesPerSecond" : 1.6899999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.079613373249999994,
+      "sizeBytes" : 134217728
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev3->dev0 (2 hops)",
+      "gbytesPerSecond" : 1.8999999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.070539596499999996,
+      "sizeBytes" : 134217728
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev0->staging",
+      "gbytesPerSecond" : 10.02,
+      "kind" : "bandwidth",
+      "seconds" : 0.01339567275,
+      "sizeBytes" : 134217728
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "staging->dev0",
+      "gbytesPerSecond" : 22.129999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.0060661825000000004,
+      "sizeBytes" : 134217728
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev3->staging",
+      "gbytesPerSecond" : 168.65000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 0.00079582025000000001,
+      "sizeBytes" : 134217728
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "staging->dev3",
+      "gbytesPerSecond" : 209.83000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 0.00063965574999999997,
+      "sizeBytes" : 134217728
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev0->dev3 (2 hops)",
+      "gbytesPerSecond" : 2.5,
+      "kind" : "bandwidth",
+      "seconds" : 0.10723392850000001,
+      "sizeBytes" : 268435456
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev3->dev0 (2 hops)",
+      "gbytesPerSecond" : 2.6800000000000002,
+      "kind" : "bandwidth",
+      "seconds" : 0.100160758,
+      "sizeBytes" : 268435456
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev0->staging",
+      "gbytesPerSecond" : 128.83000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 0.0020837132499999999,
+      "sizeBytes" : 268435456
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "staging->dev0",
+      "gbytesPerSecond" : 151.55000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 0.0017712965000000001,
+      "sizeBytes" : 268435456
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev3->staging",
+      "gbytesPerSecond" : 198.00999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.00135565675,
+      "sizeBytes" : 268435456
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "staging->dev3",
+      "gbytesPerSecond" : 199.25,
+      "kind" : "bandwidth",
+      "seconds" : 0.0013472602499999999,
+      "sizeBytes" : 268435456
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev0->dev3 (2 hops)",
+      "gbytesPerSecond" : 3.1099999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 0.172454465,
+      "sizeBytes" : 536870912
+    },
+    {
+      "copyPath" : "kernel",
+      "direction" : "dev3->dev0 (2 hops)",
+      "gbytesPerSecond" : 3.0800000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 0.17413076124999999,
+      "sizeBytes" : 536870912
+    }
+  ],
+  "tool" : "if-bench",
+  "version" : "1"
+}
