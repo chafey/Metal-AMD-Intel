@@ -1,6 +1,7 @@
 import Foundation
 import IOKit
 import Metal
+import ToolSupport
 
 // gpu-probe: enumerate every MTLDevice with its backing IOKit registry
 // properties and the machine environment, paste-ready for benchmark

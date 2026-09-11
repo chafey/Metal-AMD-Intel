@@ -2,17 +2,27 @@
 import PackageDescription
 
 // Swift tools for Metal-AMD-Intel. Each tool is an executable target under
-// Sources/. Examples live in their own package at examples/swift/.
+// Sources/; shared IOKit/Metal/environment helpers live in ToolSupport.
+// Examples live in their own package at examples/swift/.
 let package = Package(
     name: "metal-amd-intel-tools",
     platforms: [
         .macOS(.v14),
     ],
     targets: [
+        .target(
+            name: "ToolSupport",
+            path: "Sources/ToolSupport"
+        ),
         .executableTarget(
             name: "gpu-probe",
+            dependencies: ["ToolSupport"],
             path: "Sources/gpu-probe"
         ),
-        // Phase 2/3 will add: if-bench
+        .executableTarget(
+            name: "if-bench",
+            dependencies: ["ToolSupport"],
+            path: "Sources/if-bench"
+        ),
     ]
 )

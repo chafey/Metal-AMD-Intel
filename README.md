@@ -80,11 +80,9 @@ make all
 
 # Run the discovery tools
 swift run --package-path tools gpu-probe
+swift run --package-path tools if-bench -- --list-devices
 make ccpp && build/tools/iokit-dump/iokit-dump --name AMDRadeonX6000
 swift run --package-path examples/swift device-basics
-
-# (if-bench and mtl-bench land in Phase 3; their READMEs describe the
-# planned interfaces)
 
 # Run all benchmarks and drop JSON results in build/
 ./scripts/run-all-benchmarks.sh

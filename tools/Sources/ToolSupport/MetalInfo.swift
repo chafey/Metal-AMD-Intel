@@ -5,15 +5,15 @@ import ObjectiveC
 // Per-MTLDevice Metal-side facts: identity, memory limits, and capability
 // probes. Correlation with IOKit happens in main.swift via `registryID`.
 
-enum MetalInfo {
+public enum MetalInfo {
     /// `MTLDevice.registryID` has been declared as both `uint32_t` and
     /// `uint64_t` across SDKs; normalize to UInt64 (a bare narrowing cast
     /// traps on macOS 26 SDKs where ids exceed UInt32.max).
-    static func registryID(of device: MTLDevice) -> UInt64 {
+    public static func registryID(of device: MTLDevice) -> UInt64 {
         UInt64(device.registryID)
     }
 
-    static func report(for device: MTLDevice) -> [String: Any] {
+    public static func report(for device: MTLDevice) -> [String: Any] {
         var info: [String: Any] = [:]
         info["name"] = device.name
         info["registryID"] = registryID(of: device)

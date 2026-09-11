@@ -6,16 +6,16 @@ import IOKit
 
 /// One `IOPCIDevice` and everything hanging below it in the IOService plane.
 /// A class so `deinit` can release the held IOKit references.
-final class PCISubtree {
-    let device: io_registry_entry_t  // owned (retained)
-    let serviceName: String
+final public class PCISubtree {
+    public let device: io_registry_entry_t  // owned (retained)
+    public let serviceName: String
     /// All entries in the subtree (including the device itself), keyed by
     /// their IOKit registry-entry id. Used to resolve `MTLDevice.registryID`.
-    var entriesByID: [UInt64: io_registry_entry_t]  // owned
+    public var entriesByID: [UInt64: io_registry_entry_t]  // owned
     /// Same entries as a flat list, for property scans.
-    var allEntries: [io_registry_entry_t]  // owned
+    public var allEntries: [io_registry_entry_t]  // owned
 
-    init(device: io_registry_entry_t) {
+    public init(device: io_registry_entry_t) {
         self.device = device
         IOObjectRetain(device)
 
@@ -41,7 +41,7 @@ final class PCISubtree {
 
     /// Recursive IOService-plane walk rooted at `entry` (includes `entry`).
     /// Returns +1-owned references for every entry.
-    static func serviceSubtree(of entry: io_registry_entry_t) -> [io_registry_entry_t] {
+    public static func serviceSubtree(of entry: io_registry_entry_t) -> [io_registry_entry_t] {
         var result: [io_registry_entry_t] = []
         var iterator: io_iterator_t = 0
         guard IORegistryEntryCreateIterator(
@@ -60,16 +60,16 @@ final class PCISubtree {
     }
 }
 
-enum IORegistryHelper {
+public enum IORegistryHelper {
     /// The C++ class name of a registry object.
-    static func className(of entry: io_registry_entry_t) -> String? {
+    public static func className(of entry: io_registry_entry_t) -> String? {
         var classBuf = [CChar](repeating: 0, count: 256)
         guard IOObjectGetClass(entry, &classBuf) == KERN_SUCCESS else { return nil }
         return String(cString: classBuf)
     }
 
     /// Read a property as a plain Swift value (NSNumber/String/Data/...).
-    static func property(_ entry: io_registry_entry_t, _ key: String) -> Any? {
+    public static func property(_ entry: io_registry_entry_t, _ key: String) -> Any? {
         guard
             let cf = IORegistryEntryCreateCFProperty(
                 entry, key as CFString, kCFAllocatorDefault, 0)
@@ -79,7 +79,7 @@ enum IORegistryHelper {
 
     /// The IOKit registry-entry id of an entry (the value `MTLDevice`
     /// `registryID` is documented to correspond to).
-    static func entryID(of entry: io_registry_entry_t) -> UInt64? {
+    public static func entryID(of entry: io_registry_entry_t) -> UInt64? {
         var id: UInt64 = 0
         guard IORegistryEntryGetRegistryEntryID(entry, &id) == KERN_SUCCESS else {
             return nil
@@ -90,7 +90,7 @@ enum IORegistryHelper {
     /// Read a PCI-style numeric property. IOKit stores these as raw
     /// little-endian `Data` blobs (e.g. vendor-id `<00021000>` == 0x1002),
     /// though some drivers publish `OSNumber`; handle both.
-    static func numericProperty(_ entry: io_registry_entry_t, _ key: String) -> UInt64? {
+    public static func numericProperty(_ entry: io_registry_entry_t, _ key: String) -> UInt64? {
         guard let value = property(entry, key) else { return nil }
         if let number = value as? NSNumber { return number.uint64Value }
         if let data = value as? Data, data.count <= 8 {
@@ -103,7 +103,7 @@ enum IORegistryHelper {
 
     /// All IOPCIDevice services in the system. Each returned reference is
     /// owned by the caller (release with `IOObjectRelease`).
-    static func allPCIDevices() -> [io_registry_entry_t] {
+    public static func allPCIDevices() -> [io_registry_entry_t] {
         var result: [io_registry_entry_t] = []
         var iterator: io_iterator_t = 0
         guard let matching = IOServiceMatching("IOPCIDevice") else { return result }
@@ -122,7 +122,7 @@ enum IORegistryHelper {
 
     /// Nearest ancestor (inclusive) whose C++ class is `className`. The
     /// returned reference is +1-owned by the caller (release it).
-    static func ancestor(of entry: io_registry_entry_t, conformingTo className: String) -> io_registry_entry_t? {
+    public static func ancestor(of entry: io_registry_entry_t, conformingTo className: String) -> io_registry_entry_t? {
         var current = entry
         IOObjectRetain(current)
         while current != 0 {
@@ -139,7 +139,7 @@ enum IORegistryHelper {
 
     /// All (node, key, value) triples in `entries` for `keys` — one per
     /// (node, key), duplicates across shared paths deduplicated.
-    static func scanAll(
+    public static func scanAll(
         entries: [io_registry_entry_t], forKeys keys: Set<String>
     ) -> [(node: String, key: String, value: Any)] {
         var seen = Set<String>()
@@ -162,7 +162,7 @@ enum IORegistryHelper {
     /// All properties on `entries` whose name contains `substring`
     /// (case-insensitive). Entries reachable via multiple paths are
     /// deduplicated by (node, key).
-    static func properties(
+    public static func properties(
         matching substring: String, in entries: [io_registry_entry_t]
     ) -> [(node: String, key: String, value: Any)] {
         var results: [(node: String, key: String, value: Any)] = []

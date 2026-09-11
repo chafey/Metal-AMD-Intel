@@ -4,14 +4,14 @@ Diagnostic and benchmark tools. Swift tools live in this SwiftPM package; the
 C tool (`iokit-dump`) and any C++ tools use their own CMake builds and are
 driven from the root `Makefile`.
 
-> **Status:** `gpu-probe` (Swift) and `iokit-dump` (C) are implemented.
-> `if-bench` and `mtl-bench` are design stubs scheduled for Phase 3; see
-> each tool's README.
+> **Status:** `gpu-probe` (Swift), `if-bench` (Swift) and `iokit-dump` (C)
+> are implemented, as is `mtl-bench` (C++). All four ran on MPX hardware;
+> results live in [`../docs/benchmarks/`](../docs/benchmarks/).
 
 | Tool | Language | Purpose |
 |---|---|---|
 | [gpu-probe](gpu-probe/) | Swift | Enumerate `MTLDevice`s + IOKit registry properties; paste-ready environment block for benchmark reports |
-| [if-bench](if-bench/) | Swift | On-module Infinity Fabric Link jumper and cross-card Infinity Fabric Link bridge bandwidth/latency |
+| [if-bench](if-bench/) | Swift | Local / IOSurface-staged cross-device / host copy bandwidth & latency; concurrent-load repro |
 | [mtl-bench](mtl-bench/) | C++ | Command-encoder / dispatch microbenchmarks |
 | [iokit-dump](iokit-dump/) | C | Raw IORegistry dump of GPU/PCI families for triage |
 

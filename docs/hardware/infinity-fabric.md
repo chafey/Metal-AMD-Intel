@@ -39,7 +39,18 @@ Measured numbers live in [../benchmarks/](../benchmarks/) and are produced by
 
 | Card | Direction | Buffer size | Bandwidth | Latency | Report |
 |---|---|---|---|---|---|
-| _none yet_ | | | | | |
+| W6800X Duo | local (device → own VRAM) | 64 MiB | 67 GB/s | 6 µs/copy @1 MiB | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
+| W6800X Duo ×2 | dev → staging write | 16–64 MiB | 22–24 GB/s | — | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
+| W6800X Duo ×2 | staging → dev read | 32–64 MiB | 88–97 GB/s | — | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
+| W6800X Duo ×2 | dev0 → dev1 (via staging, 2 hops) | 64 MiB/hop | 7–8.5 GB/s | 170–407 µs/hop | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
+
+Two findings from that report, pending independent confirmation:
+
+- Metal exposes **no direct GPU→GPU copy**; cross-device movement goes
+  through an IOSurface staging region (two hops, one commit/wait each).
+- Staging hop rates (up to 97 GB/s) **exceed the PCIe Gen3 x16 ceiling**,
+  so the driver places IOSurface pages in GPU memory rather than host RAM;
+  whether remote access rides the xGMI hive is not yet directly evidenced.
 
 Directions worth distinguishing:
 

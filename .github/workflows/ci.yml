@@ -19,6 +19,9 @@ jobs:
       - name: Build Swift tools
         run: swift build --package-path tools -c release
 
+      - name: Build C/C++ tools
+        run: make ccpp
+
       - name: Build Swift examples
         run: swift build --package-path examples/swift -c release
 

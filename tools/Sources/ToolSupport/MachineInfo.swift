@@ -3,8 +3,8 @@ import Foundation
 // Machine / OS / driver environment block, matching the "paste-ready
 // environment block" promised in tools/gpu-probe/README.md.
 
-enum MachineInfo {
-    static func sysctlString(_ name: String) -> String? {
+public enum MachineInfo {
+    public static func sysctlString(_ name: String) -> String? {
         var size = 0
         guard sysctlbyname(name, nil, &size, nil, 0) == 0, size > 0 else { return nil }
         var buffer = [CChar](repeating: 0, count: size)
@@ -12,7 +12,7 @@ enum MachineInfo {
         return String(cString: buffer)
     }
 
-    static func report() -> [String: Any] {
+    public static func report() -> [String: Any] {
         var info: [String: Any] = [:]
         info["model"] = sysctlString("hw.model") ?? "unknown"
         info["cpu"] = sysctlString("machdep.cpu.brand_string") ?? "unknown"
@@ -31,7 +31,7 @@ enum MachineInfo {
 
     /// Bundle versions of the AMD GPU kexts / accelerator families present on
     /// the system, from both /System/Library/Extensions and /Library/Extensions.
-    static func amdDriverVersions() -> [String: String] {
+    public static func amdDriverVersions() -> [String: String] {
         let prefixes = ["AMDRadeon", "AMDFramebuffer", "IOAcceleratorFamily"]
         let dirs = [
             "/System/Library/Extensions",

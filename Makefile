@@ -2,7 +2,7 @@
 #
 # Swift artifacts use SwiftPM; C/C++ artifacts use CMake. CMake-backed
 # directories only build once their CMakeLists.txt exists (implemented for
-# tools/iokit-dump; mtl-bench and the C/C++ examples land in Phases 3-4).
+# tools/iokit-dump and tools/mtl-bench; the C/C++ examples land in Phase 4).
 
 BUILD_DIR := build
 
@@ -33,7 +33,7 @@ swift-fmt:
 	swift-format format -i -r tools/Sources examples/swift/Sources 2>/dev/null || true
 
 c-fmt:
-	@find tools examples -name '*.[ch]' -o -name '*.cc' -o -name '*.hpp' | xargs -r clang-format -i
+	@find tools examples \( -name '*.[ch]' -o -name '*.cc' -o -name '*.hpp' -o -name '*.mm' \) -print0 | xargs -0 -r clang-format -i
 
 fmt-check:
 	swift-format lint -s -r tools/Sources examples/swift/Sources

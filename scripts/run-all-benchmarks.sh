@@ -9,8 +9,14 @@ mkdir -p build/results
 echo "==> gpu-probe"
 swift run --package-path tools gpu-probe --json > build/results/gpu-probe.json
 
-# Phase 3 will add:
-# echo "==> if-bench"
-# swift run --package-path tools if-bench --json > build/results/if-bench.json
+echo "==> if-bench"
+swift run --package-path tools if-bench -- --json > build/results/if-bench.json
+
+if [ -x build/tools/mtl-bench/mtl-bench ]; then
+  echo "==> mtl-bench"
+  build/tools/mtl-bench/mtl-bench --json > build/results/mtl-bench.json 2>/dev/null
+else
+  echo "==> skipping mtl-bench (run 'make ccpp' first)"
+fi
 
 echo "results written to build/results/"
