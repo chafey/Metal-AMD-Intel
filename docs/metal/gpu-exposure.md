@@ -12,9 +12,7 @@ with distinct `registryID`s that exceed `UInt32.max` (e.g. 4294970790 ⇒
 be narrowed to 32 bits.
 
 Correlation (partial, from `ioreg`): the four devices are the four partitions
-of a bridged 2× W6800X Duo xGMI hive — `XGMI_NodeIndex` 0–3, two nodes under
-each physical card (see
-[../hardware/mpx-cards.md](../hardware/mpx-cards.md#evidence-2-w6800x-duo-cross-card-linked)).
+of the 2× W6800X Duo system's xGMI hive — two nodes under each physical card.
 
 TODO: correlate node index ↔ `MTLDevice` (via `location`/`entryPoint` and
 IOKit parent `IOPCIDevice`s) in the full `gpu-probe` implementation
@@ -44,7 +42,8 @@ Covered in [../../examples/swift/multi-gpu](../../examples/swift/multi-gpu):
 - TODO: document supported mechanisms for sharing `MTLBuffer`/`MTLTexture`
   content between two devices on the same Mac (shared-mode buffers,
   `MTLShareableSharedBufferManager`, IOSurface routes) and which of them work
-  across a Duo card's IF bridge.
+  across a Duo card's Infinity Fabric Link jumper (and across a cross-card
+  Infinity Fabric Link bridge).
 
 See [gotchas.md](gotchas.md) for driver-level surprises and
 [tuning.md](tuning.md) for placement guidance.

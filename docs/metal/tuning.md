@@ -1,4 +1,4 @@
-# Tuning for Duo Cards and the IF Link
+# Tuning for Duo Cards and the Infinity Fabric Link jumper
 
 Guidance on making Metal programs fast on configurations where part of the
 working set may live on a remote GPU partition.

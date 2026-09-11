@@ -1,6 +1,10 @@
 # Metal-AMD-Intel
 
-Documentation, tools, and examples for using **AMD MPX graphics cards under Metal on Intel Macs**, with particular focus on cards with an on-card **Infinity Fabric bridge** (Vega II Duo, W6800X Duo, W6900X).
+Documentation, tools, and examples for using **AMD MPX graphics cards under Metal on Intel Macs**, with particular focus on the **Infinity Fabric Link jumper** (the connector joining the two GPUs on *one* module — Vega II Duo, W6800X Duo) and the **Infinity Fabric Link bridge** (the connector joining GPUs across *two* cards — e.g. W6800X Duo, W6900X, Vega II pairs).
+
+> **Terminology (per Apple):** an **Infinity Fabric Link jumper** connects the
+> two GPUs on *one module*; an **Infinity Fabric Link bridge** connects GPUs
+> across *two cards*.
 
 > This repository is documentation-first: the [docs](docs/) capture findings about
 > these cards and how Metal exposes them, while [tools](tools/) and
@@ -12,53 +16,47 @@ Documentation, tools, and examples for using **AMD MPX graphics cards under Meta
 ### Single card configurations
 
 
-| Card | GPU silicon | VRAM | Host machines | Infinity Fabric |
+| Card | GPU silicon | VRAM | Infinity Fabric | xGMI hive |
 |---|---|---|---|---|
-| Radeon Pro Vega II | Vega 20 (1× die) | 32 GB HBM2 | iMac Pro, Mac Pro (2019) | – |
-| Radeon Pro Vega II Duo | 2× Vega 20 | 2× 32 GB HBM2 | iMac Pro, Mac Pro (2019) | on-card link |
-| Radeon Pro W5700X | Navi 10 (RDNA 1) | 16 GB GDDR6 | Mac Pro (2019) | – |
-| Radeon Pro W6800X | Navi 21 (RDNA 2) | 32 GB GDDR6 | Mac Pro (2019) | – |
-| Radeon Pro W6800X Duo | 2× Navi 21 | 2× 32 GB GDDR6 | Mac Pro (2019) | on-card bridge |
-| Radeon Pro W6900X | Navi 21 (RDNA 2) | 32 GB GDDR6 | Mac Pro (2019) | – |
+| Radeon Pro Vega II | Vega 20 (1× die) | 32 GB HBM2 @ 1 TB/s | – | – |
+| Radeon Pro Vega II Duo | 2× Vega 20 | 2× 32 GB HBM2 @ 1 TB/s per die | Infinity Fabric Link jumper | 1 hive × 2 nodes |
+| Radeon Pro W5700X | Navi 10 (RDNA 1) | 16 GB GDDR6 @ 448 GB/s | – | – |
+| Radeon Pro W6800X | Navi 21 (RDNA 2) | 32 GB GDDR6 @ 512 GB/s | – | – |
+| Radeon Pro W6800X Duo | 2× Navi 21 | 2× 32 GB GDDR6 @ 512 GB/s per die | Infinity Fabric Link jumper | 1 hive × 2 nodes |
+| Radeon Pro W6900X | Navi 21 (RDNA 2) | 32 GB GDDR6 @ 512 GB/s | – | – |
 
 ### Multi-card configurations
 
-A cross-card **Infinity Fabric link** — available as a **link jumper** or a
-**link bridge** — can join two MPX cards into one xGMI hive, giving direct
-GPU-to-GPU peer paths that bypass the host:
+An **Infinity Fabric Link bridge** connects GPUs across two MPX cards, joining
+them into one xGMI hive and giving direct GPU-to-GPU peer paths that bypass
+the host. (The **Infinity Fabric Link jumper** is a separate, on-module
+connector: it joins the two GPUs of a Duo module and is not a cross-card
+option.)
 
-| Configuration | Cross-card link | GPU partitions | Infinity Fabric |
-|---|---|---|---|
-| 2× Radeon Pro W6800X Duo | link jumper | 4× Navi 21 | on-card bridges **plus** cross-card jumper; TODO: confirm hive formation/bandwidth vs bridge |
-| 2× Radeon Pro W6800X Duo | link bridge | 4× Navi 21 | on-card bridges **plus** cross-card bridge → single 4-node xGMI hive (evidence below) |
-| 2× Radeon Pro W6900X | link jumper | 2× Navi 21 | cross-card jumper; TODO: confirm hive formation/bandwidth vs bridge |
-| 2× Radeon Pro W6900X | link bridge | 2× Navi 21 | cross-card bridge |
-| 2× Radeon Pro Vega II | link jumper | 2× Vega 20 | cross-card jumper; TODO: confirm hive formation/bandwidth vs bridge |
-| 2× Radeon Pro Vega II | link bridge | 2× Vega 20 | cross-card bridge |
-| 2× Radeon Pro Vega II Duo | link jumper | 4× Vega 20 | on-card bridges **plus** cross-card jumper ⚠️¹ |
-| 2× Radeon Pro Vega II Duo | link bridge | 4× Vega 20 | on-card bridges **plus** cross-card bridge ⚠️¹ |
+| Configuration | GPU silicon | VRAM | Infinity Fabric | xGMI hive |
+|---|---|---|---|---|
+| 2× Radeon Pro W6800X Duo, Link jumpers only | 4× Navi 21 | 4× 32 GB GDDR6 (128 GB) @ 512 GB/s per GPU | cards **not** IF connected; jumper joins GPUs within each module | 2 hives × 2 nodes |
+| 2× Radeon Pro W6800X Duo, Link bridge | 4× Navi 21 | 4× 32 GB GDDR6 (128 GB) @ 512 GB/s per GPU | bridge joins the two module hives | 1 hive × 4 nodes |
+| 2× Radeon Pro W6900X, Link bridge | 2× Navi 21 | 2× 32 GB GDDR6 (64 GB) @ 512 GB/s per GPU | supported | 1 hive × 2 nodes |
+| 2× Radeon Pro W6900X, no Link bridge | 2× Navi 21 | 2× 32 GB GDDR6 (64 GB) @ 512 GB/s per GPU | cards **not** IF connected | – |
+| 2× Radeon Pro Vega II, Link bridge | 2× Vega 20 | 2× 32 GB HBM2 (64 GB) @ 1 TB/s per GPU | supported | 1 hive × 2 nodes |
+| 2× Radeon Pro Vega II, no Link bridge | 2× Vega 20 | 2× 32 GB HBM2 (64 GB) @ 1 TB/s per GPU | cards **not** IF connected | – |
+| 2× Radeon Pro Vega II Duo, Link jumpers only | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) @ 1 TB/s per GPU | cards **not** IF connected; jumper joins GPUs within each module | 2 hives × 2 nodes |
+| 2× Radeon Pro Vega II Duo, Link bridge | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) @ 1 TB/s per GPU | ⚠️¹ | 1 hive × 4 nodes (unverified) |
 
-> Both MPX cards and the chassis provide for two cross-card interconnect
-> options — a **link jumper** and a **link bridge**. The evidence below was
-> captured on a linked 2× W6800X Duo system (jumper vs bridge not recorded at
-> capture time — TODO: re-check); whether (and how) the jumper forms an xGMI
-> hive is TODO, as are the two options' link widths and part numbers.
->
-> Evidence (Mac Pro 2019, 2× W6800X Duo cross-card linked, macOS 26.6.2):
-> IORegistry reports
-> `InfinityFabricLinks = Yes`, `XGMI_Enabled = Yes`, one shared `XGMI_HiveID`
-> with `XGMI_HiveSize = 4` and `XGMI_NodeIndex` 0–3 (two nodes per card).
-> Without a cross-card link, cross-card traffic falls back to the PCIe host
-> path.
-> TODO: jumper/bridge part numbers, supported pairings per option, link
+> Without an Infinity Fabric Link bridge, cross-card traffic falls back to the
+> PCIe host path.
+> TODO: jumper/bridge part numbers, official supported-pairings list, link
 > widths, and measured bandwidth
 > (see [docs/hardware/infinity-fabric.md](docs/hardware/infinity-fabric.md)).
 >
-> ⚠️ ¹ The 2× Vega II Duo cross-card configuration (either link jumper or
-> link bridge) **may not be a configuration Apple supports**; it is documented
-> here as a potentially achievable topology. TODO: confirm Apple's official
-> supported configuration list and record whether this pairing is officially
-> supported, merely undocumented, or explicitly excluded.
+> ¹ Two Duo cards with an **Infinity Fabric Link jumper** on each module are
+> not connected to each other via Infinity Fabric: the jumper only joins the
+> GPUs *within* each module, and card-to-card traffic uses the PCIe host
+> path. Whether the 2× Vega II Duo pairing may also be joined across cards
+> with an **Infinity Fabric Link bridge** may not be a configuration Apple
+> supports. TODO: confirm Apple's official supported configuration list for
+> the bridged Vega II Duo pairing.
 
 See [docs/hardware/mpx-cards.md](docs/hardware/mpx-cards.md) for details and
 [docs/hardware/host-machines.md](docs/hardware/host-machines.md) for slot/lane information.

@@ -11,7 +11,7 @@ driven from the root `Makefile`.
 | Tool | Language | Purpose |
 |---|---|---|
 | [gpu-probe](gpu-probe/) | Swift | Enumerate `MTLDevice`s + IOKit registry properties; paste-ready environment block for benchmark reports |
-| [if-bench](if-bench/) | Swift | Infinity Fabric bridge bandwidth/latency between Duo partitions |
+| [if-bench](if-bench/) | Swift | On-module Infinity Fabric Link jumper and cross-card Infinity Fabric Link bridge bandwidth/latency |
 | [mtl-bench](mtl-bench/) | C++ | Command-encoder / dispatch microbenchmarks |
 | [iokit-dump](iokit-dump/) | C | Raw IORegistry dump of GPU/PCI families for triage |
 

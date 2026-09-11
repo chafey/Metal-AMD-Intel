@@ -1,18 +1,21 @@
 # if-bench
 
-Measures bandwidth and latency across the on-card Infinity Fabric bridge of
-Duo MPX cards, with baselines for local VRAM and host PCIe paths.
+Measures bandwidth and latency across the on-module **Infinity Fabric Link
+jumper** of Duo MPX cards and the cross-card **Infinity Fabric Link bridge**,
+with baselines for local VRAM and host PCIe paths.
 
 **Status:** planned (Phase 3). See
 [docs/hardware/infinity-fabric.md](../../docs/hardware/infinity-fabric.md) for
 the measurement matrix it must cover:
 
 1. host → partition A / host → partition B (PCIe inbound)
-2. partition A ↔ partition B (on-card IF bridge — headline number)
+2. partition A ↔ partition B (on-module Infinity Fabric Link jumper —
+   headline number)
 3. partition A ↔ partition A (local baseline)
-4. cross-card over the external IF link (card 1 ↔ card 2 direct peer path;
-   run once with the link jumper and once with the link bridge fitted)
-5. cross-card without bridge, through the host (comparison/fallback)
+4. cross-card over the Infinity Fabric Link bridge (card 1 ↔ card 2 direct
+   peer path)
+5. cross-card without Infinity Fabric Link bridge, through the host
+   (comparison/fallback)
 
 Design notes:
 
