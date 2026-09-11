@@ -8,9 +8,11 @@ Duo MPX cards, with baselines for local VRAM and host PCIe paths.
 the measurement matrix it must cover:
 
 1. host → partition A / host → partition B (PCIe inbound)
-2. partition A ↔ partition B (the IF bridge — headline number)
+2. partition A ↔ partition B (on-card IF bridge — headline number)
 3. partition A ↔ partition A (local baseline)
-4. card 1 ↔ card 2 through the host (comparison)
+4. cross-card over the external IF link (card 1 ↔ card 2 direct peer path;
+   run once with the link jumper and once with the link bridge fitted)
+5. cross-card without bridge, through the host (comparison/fallback)
 
 Design notes:
 

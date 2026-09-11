@@ -11,9 +11,14 @@ with distinct `registryID`s that exceed `UInt32.max` (e.g. 4294970790 ⇒
 `0x1_0000_0DA6`) — so the SDK exposes `registryID` as `UInt64` and it must not
 be narrowed to 32 bits.
 
-TODO: correlate the four devices with physical modules/partitions via
-`location`/`entryPoint` and IOKit parent `IOPCIDevice`s (full `gpu-probe`
-implementation in Phase 2).
+Correlation (partial, from `ioreg`): the four devices are the four partitions
+of a bridged 2× W6800X Duo xGMI hive — `XGMI_NodeIndex` 0–3, two nodes under
+each physical card (see
+[../hardware/mpx-cards.md](../hardware/mpx-cards.md#evidence-2-w6800x-duo-cross-card-linked)).
+
+TODO: correlate node index ↔ `MTLDevice` (via `location`/`entryPoint` and
+IOKit parent `IOPCIDevice`s) in the full `gpu-probe` implementation
+(Phase 2).
 
 TODO: paste authoritative `gpu-probe` output for each configuration and
 annotate it. Questions this document must answer:
