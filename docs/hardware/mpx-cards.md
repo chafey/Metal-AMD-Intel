@@ -6,14 +6,14 @@ reference matrix; per-card deep dives link from each row.
 
 ## Matrix
 
-| Card | Silicon | CUs | VRAM | TDP | Hosts | xGMI hive | Notes |
-|---|---|---|---|---|---|---|---|
-| Radeon Pro Vega II | Vega 20 (1 die) | 64 | 32 GB HBM2 @ 1 TB/s | ~300 W | iMac Pro, Mac Pro (2019) | – | First 7 nm GPU; IOX (I/O hub) die on package |
-| Radeon Pro Vega II Duo | 2× Vega 20 | 2× 64 | 2× 32 GB HBM2 @ 1 TB/s per die | ~500 W | iMac Pro, Mac Pro (2019) | 1 hive × 2 nodes | Two dies joined by an Infinity Fabric Link jumper |
-| Radeon Pro W5700X | Navi 10 (RDNA 1) | 40 | 16 GB GDDR6 @ 448 GB/s | ~205 W | Mac Pro (2019) | – | Single wide slot |
-| Radeon Pro W6800X | Navi 21 (RDNA 2) | 56 | 32 GB GDDR6 @ 512 GB/s | ~200 W | Mac Pro (2019) | – | Single wide slot |
-| Radeon Pro W6800X Duo | 2× Navi 21 | 2× 56 | 2× 32 GB GDDR6 @ 512 GB/s per die | ~300 W | Mac Pro (2019) | 1 hive × 2 nodes | Two partitions joined by an Infinity Fabric Link jumper |
-| Radeon Pro W6900X | Navi 21 (RDNA 2) | 56 | 32 GB GDDR6 @ 512 GB/s | ~190 W | Mac Pro (2019) | – | Highest-bin single W6800X-class part |
+| Card | Silicon | CUs | VRAM | Bandwidth | TDP | Hosts | xGMI hive | Notes |
+|---|---|---|---|---|---|---|---|---|
+| Radeon Pro Vega II | Vega 20 (1 die) | 64 | 32 GB HBM2 | 1 TB/s | ~300 W | iMac Pro, Mac Pro (2019) | – | First 7 nm GPU; IOX (I/O hub) die on package |
+| Radeon Pro Vega II Duo | 2× Vega 20 | 2× 64 | 2× 32 GB HBM2 | 1 TB/s per die | ~500 W | iMac Pro, Mac Pro (2019) | 1 hive × 2 nodes | Two dies joined by an Infinity Fabric Link jumper |
+| Radeon Pro W5700X | Navi 10 (RDNA 1) | 40 | 16 GB GDDR6 | 448 GB/s | ~205 W | Mac Pro (2019) | – | Single wide slot |
+| Radeon Pro W6800X | Navi 21 (RDNA 2) | 56 | 32 GB GDDR6 | 512 GB/s | ~200 W | Mac Pro (2019) | – | Single wide slot |
+| Radeon Pro W6800X Duo | 2× Navi 21 | 2× 56 | 2× 32 GB GDDR6 | 512 GB/s per die | ~300 W | Mac Pro (2019) | 1 hive × 2 nodes | Two partitions joined by an Infinity Fabric Link jumper |
+| Radeon Pro W6900X | Navi 21 (RDNA 2) | 56 | 32 GB GDDR6 | 512 GB/s | ~190 W | Mac Pro (2019) | – | Highest-bin single W6800X-class part |
 
 > TODO: verify CU counts/TDPs/memory bandwidth against Apple spec sheets and
 > cite sources; add per-card IOKit `device-id` / `revision-id` table once
@@ -44,16 +44,16 @@ direct GPU-to-GPU paths between cards that bypass the host. (The **Infinity
 Fabric Link jumper** is the separate on-module connector joining a Duo card's
 two GPUs; it is not a cross-card option.)
 
-| Configuration | GPU silicon | VRAM | Infinity Fabric | xGMI hive |
-|---|---|---|---|---|
-| 2× W6800X Duo, Link jumpers only | 4× Navi 21 | 4× 32 GB GDDR6 (128 GB) @ 512 GB/s per GPU | cards **not** IF connected; jumper joins GPUs within each module | 2 hives × 2 nodes |
-| 2× W6800X Duo, Link bridge | 4× Navi 21 | 4× 32 GB GDDR6 (128 GB) @ 512 GB/s per GPU | bridge joins the two module hives | 1 hive × 4 nodes |
-| 2× W6900X, Link bridge | 2× Navi 21 | 2× 32 GB GDDR6 (64 GB) @ 512 GB/s per GPU | supported | 1 hive × 2 nodes |
-| 2× W6900X, no Link bridge | 2× Navi 21 | 2× 32 GB GDDR6 (64 GB) @ 512 GB/s per GPU | cards **not** IF connected | – |
-| 2× Vega II, Link bridge | 2× Vega 20 | 2× 32 GB HBM2 (64 GB) @ 1 TB/s per GPU | supported | 1 hive × 2 nodes |
-| 2× Vega II, no Link bridge | 2× Vega 20 | 2× 32 GB HBM2 (64 GB) @ 1 TB/s per GPU | cards **not** IF connected | – |
-| 2× Vega II Duo, Link jumpers only | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) @ 1 TB/s per GPU | cards **not** IF connected; jumper joins GPUs within each module | 2 hives × 2 nodes |
-| 2× Vega II Duo, Link bridge | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) @ 1 TB/s per GPU | ⚠️ may not be an Apple-supported configuration | 1 hive × 4 nodes (unverified) |
+| Configuration | GPU silicon | VRAM | Bandwidth | Infinity Fabric | xGMI hive |
+|---|---|---|---|---|---|
+| 2× W6800X Duo, Link jumpers only | 4× Navi 21 | 4× 32 GB GDDR6 (128 GB) | 512 GB/s per GPU | cards **not** IF connected; jumper joins GPUs within each module | 2 hives × 2 nodes |
+| 2× W6800X Duo, Link bridge | 4× Navi 21 | 4× 32 GB GDDR6 (128 GB) | 512 GB/s per GPU | bridge joins the two module hives | 1 hive × 4 nodes |
+| 2× W6900X, Link bridge | 2× Navi 21 | 2× 32 GB GDDR6 (64 GB) | 512 GB/s per GPU | supported | 1 hive × 2 nodes |
+| 2× W6900X, no Link bridge | 2× Navi 21 | 2× 32 GB GDDR6 (64 GB) | 512 GB/s per GPU | cards **not** IF connected | – |
+| 2× Vega II, Link bridge | 2× Vega 20 | 2× 32 GB HBM2 (64 GB) | 1 TB/s per GPU | supported | 1 hive × 2 nodes |
+| 2× Vega II, no Link bridge | 2× Vega 20 | 2× 32 GB HBM2 (64 GB) | 1 TB/s per GPU | cards **not** IF connected | – |
+| 2× Vega II Duo, Link jumpers only | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) | 1 TB/s per GPU | cards **not** IF connected; jumper joins GPUs within each module | 2 hives × 2 nodes |
+| 2× Vega II Duo, Link bridge | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) | 1 TB/s per GPU | ⚠️ may not be an Apple-supported configuration | 1 hive × 4 nodes (unverified) |
 
 Note for Duo cards: each module's on-module **Infinity Fabric Link jumper**
 makes its two GPUs one IF domain regardless of any bridge. Two Duo cards with

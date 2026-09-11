@@ -16,14 +16,14 @@ Documentation, tools, and examples for using **AMD MPX graphics cards under Meta
 ### Single card configurations
 
 
-| Card | GPU silicon | VRAM | Infinity Fabric | xGMI hive |
-|---|---|---|---|---|
-| Radeon Pro Vega II | Vega 20 (1× die) | 32 GB HBM2 @ 1 TB/s | – | – |
-| Radeon Pro Vega II Duo | 2× Vega 20 | 2× 32 GB HBM2 @ 1 TB/s per die | Infinity Fabric Link jumper | 1 hive × 2 nodes |
-| Radeon Pro W5700X | Navi 10 (RDNA 1) | 16 GB GDDR6 @ 448 GB/s | – | – |
-| Radeon Pro W6800X | Navi 21 (RDNA 2) | 32 GB GDDR6 @ 512 GB/s | – | – |
-| Radeon Pro W6800X Duo | 2× Navi 21 | 2× 32 GB GDDR6 @ 512 GB/s per die | Infinity Fabric Link jumper | 1 hive × 2 nodes |
-| Radeon Pro W6900X | Navi 21 (RDNA 2) | 32 GB GDDR6 @ 512 GB/s | – | – |
+| Card | GPU silicon | VRAM | Bandwidth | Infinity Fabric | xGMI hive |
+|---|---|---|---|---|---|
+| Radeon Pro Vega II | Vega 20 (1× die) | 32 GB HBM2 | 1 TB/s | – | – |
+| Radeon Pro Vega II Duo | 2× Vega 20 | 2× 32 GB HBM2 | 1 TB/s per die | Infinity Fabric Link jumper | 1 hive × 2 nodes |
+| Radeon Pro W5700X | Navi 10 (RDNA 1) | 16 GB GDDR6 | 448 GB/s | – | – |
+| Radeon Pro W6800X | Navi 21 (RDNA 2) | 32 GB GDDR6 | 512 GB/s | – | – |
+| Radeon Pro W6800X Duo | 2× Navi 21 | 2× 32 GB GDDR6 | 512 GB/s per die | Infinity Fabric Link jumper | 1 hive × 2 nodes |
+| Radeon Pro W6900X | Navi 21 (RDNA 2) | 32 GB GDDR6 | 512 GB/s | – | – |
 
 ### Multi-card configurations
 
@@ -33,16 +33,16 @@ the host. (The **Infinity Fabric Link jumper** is a separate, on-module
 connector: it joins the two GPUs of a Duo module and is not a cross-card
 option.)
 
-| Configuration | GPU silicon | VRAM | Infinity Fabric | xGMI hive |
-|---|---|---|---|---|
-| 2× Radeon Pro W6800X Duo, Link jumpers only | 4× Navi 21 | 4× 32 GB GDDR6 (128 GB) @ 512 GB/s per GPU | cards **not** IF connected; jumper joins GPUs within each module | 2 hives × 2 nodes |
-| 2× Radeon Pro W6800X Duo, Link bridge | 4× Navi 21 | 4× 32 GB GDDR6 (128 GB) @ 512 GB/s per GPU | bridge joins the two module hives | 1 hive × 4 nodes |
-| 2× Radeon Pro W6900X, Link bridge | 2× Navi 21 | 2× 32 GB GDDR6 (64 GB) @ 512 GB/s per GPU | supported | 1 hive × 2 nodes |
-| 2× Radeon Pro W6900X, no Link bridge | 2× Navi 21 | 2× 32 GB GDDR6 (64 GB) @ 512 GB/s per GPU | cards **not** IF connected | – |
-| 2× Radeon Pro Vega II, Link bridge | 2× Vega 20 | 2× 32 GB HBM2 (64 GB) @ 1 TB/s per GPU | supported | 1 hive × 2 nodes |
-| 2× Radeon Pro Vega II, no Link bridge | 2× Vega 20 | 2× 32 GB HBM2 (64 GB) @ 1 TB/s per GPU | cards **not** IF connected | – |
-| 2× Radeon Pro Vega II Duo, Link jumpers only | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) @ 1 TB/s per GPU | cards **not** IF connected; jumper joins GPUs within each module | 2 hives × 2 nodes |
-| 2× Radeon Pro Vega II Duo, Link bridge | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) @ 1 TB/s per GPU | ⚠️¹ | 1 hive × 4 nodes (unverified) |
+| Configuration | GPU silicon | VRAM | Bandwidth | Infinity Fabric | xGMI hive |
+|---|---|---|---|---|---|
+| 2× Radeon Pro W6800X Duo, Link jumpers only | 4× Navi 21 | 4× 32 GB GDDR6 (128 GB) | 512 GB/s per GPU | cards **not** IF connected; jumper joins GPUs within each module | 2 hives × 2 nodes |
+| 2× Radeon Pro W6800X Duo, Link bridge | 4× Navi 21 | 4× 32 GB GDDR6 (128 GB) | 512 GB/s per GPU | bridge joins the two module hives | 1 hive × 4 nodes |
+| 2× Radeon Pro W6900X, Link bridge | 2× Navi 21 | 2× 32 GB GDDR6 (64 GB) | 512 GB/s per GPU | supported | 1 hive × 2 nodes |
+| 2× Radeon Pro W6900X, no Link bridge | 2× Navi 21 | 2× 32 GB GDDR6 (64 GB) | 512 GB/s per GPU | cards **not** IF connected | – |
+| 2× Radeon Pro Vega II, Link bridge | 2× Vega 20 | 2× 32 GB HBM2 (64 GB) | 1 TB/s per GPU | supported | 1 hive × 2 nodes |
+| 2× Radeon Pro Vega II, no Link bridge | 2× Vega 20 | 2× 32 GB HBM2 (64 GB) | 1 TB/s per GPU | cards **not** IF connected | – |
+| 2× Radeon Pro Vega II Duo, Link jumpers only | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) | 1 TB/s per GPU | cards **not** IF connected; jumper joins GPUs within each module | 2 hives × 2 nodes |
+| 2× Radeon Pro Vega II Duo, Link bridge | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) | 1 TB/s per GPU | ⚠️¹ | 1 hive × 4 nodes (unverified) |
 
 > Without an Infinity Fabric Link bridge, cross-card traffic falls back to the
 > PCIe host path.
