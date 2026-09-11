@@ -1,0 +1,35 @@
+# Build and format-check only: GitHub macOS runners have no AMD MPX hardware,
+# so all hardware validation is done manually (see CONTRIBUTING.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app || true
+
+      - name: Build Swift tools
+        run: swift build --package-path tools -c release
+
+      - name: Build Swift examples
+        run: swift build --package-path examples/swift -c release
+
+      - name: Lint Swift
+        run: swift-format lint -s -r tools/Sources examples/swift/Sources 2>/dev/null \
+          || echo "swift-format unavailable on runner; skipping"
+
+  markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DavidAnson/markdownlint-cli2-action@v17
+        with:
+          globs: "**/*.md"

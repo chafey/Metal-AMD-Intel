@@ -1,0 +1,8 @@
+.build/
+build/
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+.DS_Store
+compile_commands.json
+.cache/
