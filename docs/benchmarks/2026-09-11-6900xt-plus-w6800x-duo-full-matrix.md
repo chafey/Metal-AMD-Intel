@@ -189,18 +189,51 @@ Follow-up run on one hive pair (dev3↔dev4, blit, Release build):
 The 2-hop chain **saturates at ≈ 9.1 GB/s around 128–256 MiB** (increments
 per doubling: 0.47, 0.23, 0.12, 0.05 GB/s). Because a 256 MiB working set
 exceeds the ~128 MB Infinity Cache yet the rate holds (rather than drops),
-the staging chain is not cache-bound at saturation — the ceiling is the
-write hop plus per-hop commit/wait. ≈ 9.1 GB/s is therefore an honest
-route ceiling, not a cache artifact. (Required fix: `Staging` sizes its
-IOSurface within the 16 384 px texture limit; regions beyond 256 MiB are
-now skipped instead of asserting.)
+the staging chain is not cache-bound at saturation. An earlier reading
+that attributed the ceiling to the slow write hop was **superseded the
+same day by Addendum 2** below: kernel-driven hops are ~8× faster in
+isolation yet the chain plateaus near 11 GB/s. (Required fix: `Staging`
+sizes its IOSurface within the 16 384 px texture limit; regions beyond
+256 MiB are now skipped instead of asserting.)
+
+### Addendum 2 (same day): kernel-driven staging hops (`--peer-path`)
+
+Added a compute-kernel hop implementation (write kernel stores into the
+IOSurface texture view via `access::write`, read kernel via `access::read`;
+byte payload round-trips losslessly through unorm8) and a per-path
+coherence gate. Command:
+`tools/.build/release/if-bench --device-a 3 --device-b 4 --mode peer
+--peer-path both --path blit --min-size 16777216 --max-size 268435456
+--json` (raw: `raw/2026-09-11-matrix-peer3-4-kernel-vs-blit.json`).
+Both coherence gates (blit and kernel) passed. Peak rates:
+
+| Buffer/hop | chain blit | chain kernel | write hop blit | write hop kernel | read hop blit | read hop kernel |
+|---|---|---|---|---|---|---|
+| 16 MiB | 8.3 | 9.7 | 21–24 | 87–98 | 76 | 97–104 |
+| 64 MiB | 8.9 | 10.7 | 25–26 | 163–176 | 100–107 | 174–177 |
+| 256 MiB | 9.1 | **11.0** | 25–27 | **197–200** | 103–107 | **200–202** |
+
+(chain columns are A→B; B→A within 0.1 GB/s)
+
+- **The blit buffer↔IOSurface path, not the memory system, is what makes
+  isolated write hops look slow.** A shader touching the same pages moves
+  up to ~200 GB/s (256 MiB, still climbing) — 8× the blit hop.
+- **Yet the dependent chain only rises 9.1 → 11.0 GB/s.** The chain
+  ceiling therefore sits in the cross-device staging step (making A's
+  writes visible to B), which neither hop implementation can accelerate.
+  ~11 GB/s is the current best-measured cross-device staging-route
+  ceiling on this hive pair.
+- Kernel hop rates near 200 GB/s at 256 MiB — five times above the PCIe
+  ceiling — independently reconfirm staging pages are GPU-resident when
+  touched by the GPU that measures them in isolation.
 
 ## Raw data
 
-24 JSON captures under [`raw/`](raw/), prefix `2026-09-11-matrix-`:
+25 JSON captures under [`raw/`](raw/), prefix `2026-09-11-matrix-`:
 `gpu-probe`, `devices`, `if-bench-dev{0..4}`,
 `if-bench-peer{A}-{B}` (all 10 pairs), `mtl-bench-dev{0..4}`,
-plus `if-bench-peer3-4-extended.json`.
+plus `if-bench-peer3-4-extended.json` and
+`if-bench-peer3-4-kernel-vs-blit.json`.
 Progress log: `build/results/run.progress.log` (not archived).
 
 ## Conclusions

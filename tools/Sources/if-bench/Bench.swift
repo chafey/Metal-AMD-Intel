@@ -15,6 +15,8 @@ final class DeviceCtx {
     let copyPipeline: MTLComputePipelineState?
     let fillPipeline: MTLComputePipelineState?
     let sumPipeline: MTLComputePipelineState?
+    let hopWritePipeline: MTLComputePipelineState?
+    let hopReadPipeline: MTLComputePipelineState?
     var info: [String: Any] = [:]
 
     init(index: Int, device: MTLDevice) {
@@ -49,6 +51,41 @@ final class DeviceCtx {
                 atomic_fetch_add_explicit(out, v.x + v.y + v.z + v.w, memory_order_relaxed);
             }
         }
+        // Kernel-driven staging hops (compute touching the IOSurface texture
+        // view instead of the blitter). The r8Unorm round-trip is lossless
+        // for a byte payload: unorm8 stores k/255 exactly, for k in 0...255.
+        // Grid is over stride/4 uint4s; row4 = bytesPerRow/4.
+        kernel void writeHop(device const uchar4 *src [[buffer(0)]],
+                             texture2d<float, access::write> dst [[texture(0)]],
+                             constant uint &row4 [[buffer(1)]],
+                             constant uint &n [[buffer(2)]],
+                             uint i [[thread_position_in_grid]]) {
+            if (i < n) {
+                uchar4 v = src[i];
+                uint x = (i % row4) * 4u;
+                uint y = i / row4;
+                dst.write(float4(float(v.x) / 255.0f, 0.0f, 0.0f, 1.0f), uint2(x, y));
+                dst.write(float4(float(v.y) / 255.0f, 0.0f, 0.0f, 1.0f), uint2(x + 1u, y));
+                dst.write(float4(float(v.z) / 255.0f, 0.0f, 0.0f, 1.0f), uint2(x + 2u, y));
+                dst.write(float4(float(v.w) / 255.0f, 0.0f, 0.0f, 1.0f), uint2(x + 3u, y));
+            }
+        }
+        kernel void readHop(texture2d<float, access::read> srcTex [[texture(0)]],
+                            device uchar4 *dst [[buffer(0)]],
+                            constant uint &row4 [[buffer(1)]],
+                            constant uint &n [[buffer(2)]],
+                            uint i [[thread_position_in_grid]]) {
+            if (i < n) {
+                uint x = (i % row4) * 4u;
+                uint y = i / row4;
+                float4 a = srcTex.read(uint2(x, y));
+                float4 b = srcTex.read(uint2(x + 1u, y));
+                float4 c = srcTex.read(uint2(x + 2u, y));
+                float4 d = srcTex.read(uint2(x + 3u, y));
+                dst[i] = uchar4((uchar)round(a.x * 255.0f), (uchar)round(b.x * 255.0f),
+                                (uchar)round(c.x * 255.0f), (uchar)round(d.x * 255.0f));
+            }
+        }
         """
         func pipeline(_ function: String) -> MTLComputePipelineState? {
             guard let lib = try? device.makeLibrary(source: source, options: nil),
@@ -59,6 +96,8 @@ final class DeviceCtx {
         self.copyPipeline = pipeline("copyu4")
         self.fillPipeline = pipeline("fillu4")
         self.sumPipeline = pipeline("sumu4")
+        self.hopWritePipeline = pipeline("writeHop")
+        self.hopReadPipeline = pipeline("readHop")
     }
 
     /// GPU-resident buffer. NB: never write through `contents()` on this
@@ -249,13 +288,42 @@ func enqueueHop(_ ctx: DeviceCtx, cb: MTLCommandBuffer, buffer: MTLBuffer,
     enc.endEncoding()
 }
 
+/// Kernel-driven variant of `enqueueHop`: a compute kernel touches the
+/// staging texture view directly (`access::write` / `access::read`), for
+/// comparing shader-driven transfers against the blit/copy-engine path.
+/// Falls back to the blit path if the hop pipelines failed to compile
+/// (callers should gate on `hopWritePipeline`/`hopReadPipeline` first).
+func enqueueHopKernel(_ ctx: DeviceCtx, cb: MTLCommandBuffer, buffer: MTLBuffer,
+                      staging: Staging, texture: MTLTexture, write: Bool) {
+    guard let pipeline = write ? ctx.hopWritePipeline : ctx.hopReadPipeline,
+          let enc = cb.makeComputeCommandEncoder(),
+          staging.stride % 4 == 0
+    else {
+        enqueueHop(ctx, cb: cb, buffer: buffer, staging: staging, texture: texture, write: write)
+        return
+    }
+    enc.setComputePipelineState(pipeline)
+    enc.setBuffer(buffer, offset: 0, index: 0)
+    enc.setTexture(texture, index: 0)
+    var row4 = UInt32(staging.bytesPerRow / 4)
+    var count = UInt32(staging.stride / 4)
+    withUnsafeBytes(of: row4) { enc.setBytes($0.baseAddress!, length: 4, index: 1) }
+    withUnsafeBytes(of: count) { enc.setBytes($0.baseAddress!, length: 4, index: 2) }
+    let perGroup = pipeline.maxTotalThreadsPerThreadgroup
+    let groups = (Int(count) + perGroup - 1) / perGroup
+    enc.dispatchThreads(MTLSize(width: groups * perGroup, height: 1, depth: 1),
+                        threadsPerThreadgroup: MTLSize(width: perGroup, height: 1, depth: 1))
+    enc.endEncoding()
+}
+
 /// Bandwidth of one staging hop in isolation. Returns seconds per hop.
-func stagingHopBandwidth(_ ctx: DeviceCtx, staging: Staging, write: Bool) -> Double? {
+func stagingHopBandwidth(_ ctx: DeviceCtx, staging: Staging, write: Bool,
+                         useKernel: Bool = false) -> Double? {
     guard let tex = staging.texture(on: ctx), let buf = ctx.buffer(staging.stride) else { return nil }
     let n = max(4, iterations(for: staging.stride) / 2)
     func pass() {
         guard let cb = ctx.queue.makeCommandBuffer() else { return }
-        enqueueHop(ctx, cb: cb, buffer: buf, staging: staging, texture: tex, write: write)
+        (useKernel ? enqueueHopKernel : enqueueHop)(ctx, cb, buf, staging, tex, write)
         cb.commit()
         cb.waitUntilCompleted()
     }
@@ -266,7 +334,8 @@ func stagingHopBandwidth(_ ctx: DeviceCtx, staging: Staging, write: Bool) -> Dou
 /// Full A->B peer transfer: bufferA -> staging (on A's queue), then
 /// staging -> bufferB (on B's queue), waited in dependency order.
 /// Returns seconds per two-hop transfer.
-func peerBandwidth(_ from: DeviceCtx, _ to: DeviceCtx, staging: Staging) -> Double? {
+func peerBandwidth(_ from: DeviceCtx, _ to: DeviceCtx, staging: Staging,
+                   useKernel: Bool = false) -> Double? {
     guard let texA = staging.texture(on: from), let texB = staging.texture(on: to),
           let src = from.buffer(staging.stride), let dst = to.buffer(staging.stride)
     else { return nil }
@@ -276,10 +345,10 @@ func peerBandwidth(_ from: DeviceCtx, _ to: DeviceCtx, staging: Staging) -> Doub
         guard let cbA = from.queue.makeCommandBuffer(),
               let cbB = to.queue.makeCommandBuffer()
         else { return }
-        enqueueHop(from, cb: cbA, buffer: src, staging: staging, texture: texA, write: true)
+        (useKernel ? enqueueHopKernel : enqueueHop)(from, cbA, src, staging, texA, true)
         cbA.commit()
         cbA.waitUntilCompleted()
-        enqueueHop(to, cb: cbB, buffer: dst, staging: staging, texture: texB, write: false)
+        (useKernel ? enqueueHopKernel : enqueueHop)(to, cbB, dst, staging, texB, false)
         cbB.commit()
         cbB.waitUntilCompleted()
     }
@@ -291,14 +360,14 @@ func peerBandwidth(_ from: DeviceCtx, _ to: DeviceCtx, staging: Staging) -> Doub
 /// (A->staging, staging->B, B->staging, staging->A).
 /// Returns seconds per single hop.
 func peerRoundTripLatency(_ a: DeviceCtx, _ b: DeviceCtx, staging: Staging,
-                          roundTrips: Int) -> Double? {
+                          roundTrips: Int, useKernel: Bool = false) -> Double? {
     guard let texA = staging.texture(on: a), let texB = staging.texture(on: b),
           let bufA = a.buffer(staging.stride), let bufB = b.buffer(staging.stride)
     else { return nil }
 
     func hop(_ ctx: DeviceCtx, _ tex: MTLTexture, _ buf: MTLBuffer, _ write: Bool) {
         guard let cb = ctx.queue.makeCommandBuffer() else { return }
-        enqueueHop(ctx, cb: cb, buffer: buf, staging: staging, texture: tex, write: write)
+        (useKernel ? enqueueHopKernel : enqueueHop)(ctx, cb, buf, staging, tex, write)
         cb.commit()
         cb.waitUntilCompleted()
     }
@@ -322,7 +391,8 @@ func peerRoundTripLatency(_ a: DeviceCtx, _ b: DeviceCtx, staging: Staging,
 /// Correctness gate for peer results: write a pattern on A, read it back on
 /// B. False means the staging route is not usable on this driver/OS and
 /// peer rows must be dropped from the report.
-func peerCoherenceCheck(_ a: DeviceCtx, _ b: DeviceCtx, staging: Staging) -> Bool {
+func peerCoherenceCheck(_ a: DeviceCtx, _ b: DeviceCtx, staging: Staging,
+                        useKernel: Bool = false) -> Bool {
     let size = min(65_536, staging.stride)
     guard let texA = staging.texture(on: a), let texB = staging.texture(on: b),
           // Shared (host-visible) storage: this check seeds and verifies
@@ -334,11 +404,11 @@ func peerCoherenceCheck(_ a: DeviceCtx, _ b: DeviceCtx, staging: Staging) -> Boo
     let pattern = (0..<size).map { UInt8($0 % 251) }
     src.contents().copyMemory(from: pattern, byteCount: size)
     guard let cbA = a.queue.makeCommandBuffer() else { return false }
-    enqueueHop(a, cb: cbA, buffer: src, staging: staging, texture: texA, write: true)
+    (useKernel ? enqueueHopKernel : enqueueHop)(a, cbA, src, staging, texA, true)
     cbA.commit()
     cbA.waitUntilCompleted()
     guard let cbB = b.queue.makeCommandBuffer() else { return false }
-    enqueueHop(b, cb: cbB, buffer: dst, staging: staging, texture: texB, write: false)
+    (useKernel ? enqueueHopKernel : enqueueHop)(b, cbB, dst, staging, texB, false)
     cbB.commit()
     cbB.waitUntilCompleted()
     let got = dst.contents().bindMemory(to: UInt8.self, capacity: size)

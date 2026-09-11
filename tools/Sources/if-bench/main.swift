@@ -32,7 +32,10 @@ func printUsage() {
                             host sweeps cover both devices.
           --min-size BYTES  sweep start (default 4096)
           --max-size BYTES  sweep end (default 67108864 = 64 MiB)
-          --path blit|kernel|both    copy implementation under test (default both)
+          --path blit|kernel|both    copy implementation under test (default both;
+                            affects local bw and concurrent modes)
+          --peer-path blit|kernel|both   hop implementation for peer mode
+                            (default blit; latency rows are blit-only)
           --mode M[,M...]   comma-separated from bw|latency|peer|host|concurrent
                             (or 'all'; default all)
           --list-devices    print the device table and exit
@@ -47,6 +50,7 @@ var opts = (
     minSize: 4096, maxSize: 67_108_864,
     paths: Set(["blit", "kernel"]),
     modes: Set(["bw", "latency", "peer", "host", "concurrent"]),
+    peerPath: "blit",
     json: false, list: false
 )
 
@@ -73,6 +77,10 @@ while i < arguments.count {
         guard i < arguments.count else { break }
         if arguments[i] == "both" { opts.paths = ["blit", "kernel"] }
         else { opts.paths = [arguments[i]] }
+    case "--peer-path":
+        i += 1
+        guard i < arguments.count else { break }
+        if ["blit", "kernel", "both"].contains(arguments[i]) { opts.peerPath = arguments[i] }
     case "--mode":
         i += 1
         guard i < arguments.count else { break }
@@ -105,6 +113,7 @@ func emitReport(devices: [[String: Any]], results: [[String: Any]], notes: [Stri
             "deviceA": opts.deviceA, "deviceB": opts.deviceB,
             "minSize": opts.minSize, "maxSize": opts.maxSize,
             "paths": opts.paths.sorted(), "modes": opts.modes.sorted(),
+            "peerPath": opts.peerPath,
         ]
         let data = try! JSONSerialization.data(
             withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
@@ -314,43 +323,52 @@ if opts.modes.contains("concurrent"), ctxB == nil {
 // MARK: - Peer (cross-device via IOSurface staging)
 
 if opts.modes.contains("peer"), let b = ctxB {
-    progress("peer coherence check")
-    var coherent = false
-    if let gate = Staging(size: 65_536) {
-        coherent = peerCoherenceCheck(ctxA, b, staging: gate)
-    }
-    if !coherent {
-        notes.append("cross-device coherence check FAILED: peer rows omitted; "
-            + "on this driver/OS the IOSurface staging route is not usable "
-            + "between the selected devices")
-    } else {
+    let peerPaths: [String] = opts.peerPath == "both" ? ["blit", "kernel"] : [opts.peerPath]
+    for peerPath in peerPaths {
+        let useKernel = peerPath == "kernel"
+        if useKernel, [ctxA, b].contains(where: { $0.hopWritePipeline == nil || $0.hopReadPipeline == nil }) {
+            notes.append("kernel peer path unavailable (hop pipeline compile failed): \(peerPath) rows skipped")
+            continue
+        }
+        progress("peer coherence check (\(peerPath))")
+        var coherent = false
+        if let gate = Staging(size: 65_536) {
+            coherent = peerCoherenceCheck(ctxA, b, staging: gate, useKernel: useKernel)
+        }
+        if !coherent {
+            notes.append("cross-device coherence check FAILED (\(peerPath)): peer rows omitted; "
+                + "on this driver/OS the IOSurface staging route is not usable "
+                + "between the selected devices via this hop implementation")
+            continue
+        }
         notes.append("peer = two-hop path via one IOSurface staging region "
-            + "(A->staging + staging->B); the API does not reveal whether "
-            + "staging pages are host-resident or IF-migrated — interpret "
-            + "peer numbers as 'best cross-device path available to Metal', "
-            + "not as raw link bandwidth")
+            + "(A->staging + staging->B, \(peerPath) hop implementation); the API "
+            + "does not reveal whether staging pages are host-resident or "
+            + "IF-migrated — interpret peer numbers as 'best cross-device path "
+            + "available to Metal', not as raw link bandwidth")
         for s in sizes {
-            progress("peer sweep \(s) bytes")
+            progress("peer sweep \(peerPath) \(s) bytes")
             guard let staging = Staging(size: s) else { continue }
             let hopBytes = min(s, staging.stride)  // stride rounds s up to bpr rows
             // Isolated hops, both directions, both devices.
             for (ctx, label) in [(ctxA, labelA), (b, labelB)] {
-                if let t = stagingHopBandwidth(ctx, staging: staging, write: true) {
-                    bandwidthRow("\(label)->staging", "blit", bytes: hopBytes, seconds: t)
+                if let t = stagingHopBandwidth(ctx, staging: staging, write: true, useKernel: useKernel) {
+                    bandwidthRow("\(label)->staging", peerPath, bytes: hopBytes, seconds: t)
                 }
-                if let t = stagingHopBandwidth(ctx, staging: staging, write: false) {
-                    bandwidthRow("staging->\(label)", "blit", bytes: hopBytes, seconds: t)
+                if let t = stagingHopBandwidth(ctx, staging: staging, write: false, useKernel: useKernel) {
+                    bandwidthRow("staging->\(label)", peerPath, bytes: hopBytes, seconds: t)
                 }
             }
             // End-to-end A->B and B->A (two hops each).
-            if let t = peerBandwidth(ctxA, b, staging: staging) {
-                bandwidthRow("\(labelA)->\(labelB) (2 hops)", "blit", bytes: 2 * hopBytes, seconds: t)
+            if let t = peerBandwidth(ctxA, b, staging: staging, useKernel: useKernel) {
+                bandwidthRow("\(labelA)->\(labelB) (2 hops)", peerPath, bytes: 2 * hopBytes, seconds: t)
             }
-            if let t = peerBandwidth(b, ctxA, staging: staging) {
-                bandwidthRow("\(labelB)->\(labelA) (2 hops)", "blit", bytes: 2 * hopBytes, seconds: t)
+            if let t = peerBandwidth(b, ctxA, staging: staging, useKernel: useKernel) {
+                bandwidthRow("\(labelB)->\(labelA) (2 hops)", peerPath, bytes: 2 * hopBytes, seconds: t)
             }
-            // Dependent round-trip latency (4 hops/repetition), small sizes only.
-            if s <= 1_048_576,
+            // Dependent round-trip latency (4 hops/repetition), small sizes,
+            // blit path only (latency rows stay comparable across runs).
+            if !useKernel, s <= 1_048_576,
                let t = peerRoundTripLatency(ctxA, b, staging: staging, roundTrips: 100) {
                 latencyRow("\(labelA)<->\(labelB)", bytes: s, secondsPerHop: t)
             }

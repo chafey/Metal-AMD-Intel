@@ -26,6 +26,12 @@ dependent copy chains. Sizes sweep 4 KiB → 64 MiB by default (`--min-size`
 / `--max-size`; the sweep auto-caps at half of
 `recommendedMaxWorkingSetSize`). `--path blit|kernel|both`,
 `--mode bw|latency|peer|host|concurrent|all` (comma-separated list allowed).
+`--peer-path blit|kernel|both` selects the hop implementation for peer
+mode (default blit; the kernel hop is a compute kernel reading/writing the
+IOSurface texture view; each path gets its own coherence gate; latency
+rows are blit-only). On the 2026-09-11 capture kernel hops move ~8× more
+bytes in isolation, but the two-hop chain plateaus at ~11 GB/s either
+way — the ceiling is the cross-device staging step, not the hop engine.
 `--device-b` is optional: without it, `bw`/`latency`/`host` run on
 `--device-a` only, while `peer`/`concurrent` are skipped with a note.
 `scripts/run-all-benchmarks.sh` uses this to sweep every device

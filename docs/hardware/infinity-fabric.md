@@ -43,7 +43,7 @@ Measured numbers live in [../benchmarks/](../benchmarks/) and are produced by
 | W6800X Duo ×2 | dev → staging write | 16–64 MiB | 22–26 GB/s | — | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
 | W6800X Duo ×2 | staging → dev read | 32–64 MiB | 79–101 GB/s | — | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
 | W6800X Duo ×2 | dev → dev (via staging, 2 hops) | 64 MiB/hop | 7.3–8.8 GB/s | 170–223 µs/hop | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
-| W6800X Duo ×2 | dev → dev (via staging, 2 hops) | 128–256 MiB/hop | plateaus ≈ 9.1 GB/s | — | [2026-09-11 matrix](../benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md) |
+| W6800X Duo ×2 | dev → dev (via staging, 2 hops) | 128–256 MiB/hop | ≈ 9.1 GB/s (blit hops) / ≈ 11 GB/s (kernel hops) | — | [2026-09-11 matrix](../benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md) |
 
 Two findings from that report, pending independent confirmation:
 
