@@ -3,8 +3,10 @@
 - **Date:** 2026-09-11
 - **Author:** repo maintainer
 - **Tool:** `if-bench` v1 and `mtl-bench` (repo @ Phase 3)
-- **Exact command:** `swift run --package-path tools if-bench -- --json` and
-  `build/tools/mtl-bench/mtl-bench --json` (release builds)
+- **Exact command:** `swift run --package-path tools if-bench -- --json`,
+  `swift run --package-path tools if-bench -- --device-a 0 --device-b 2
+  --mode peer --json` and `build/tools/mtl-bench/mtl-bench --json`
+  (release builds)
 
 ## Machine
 
@@ -19,8 +21,10 @@
 
 Device pairing under test: Metal devices 0 and 1 (`registryID`
 `0x1_0000_0DA6` / `0x1_0000_0D82`, each its own `GFX0` PCI function,
-`XGMI_NodeIndex` 3 and 2 of `XGMI_HiveSize` 4). Whether an Infinity Fabric
-Link bridge is fitted in this machine was not recorded at run time.
+`XGMI_NodeIndex` 3 and 2 of `XGMI_HiveSize` 4). This machine has an Infinity
+Fabric Link bridge fitted (maintainer-confirmed 2026-09-11): each Duo's
+on-module Infinity Fabric Link jumper forms a 2-GPU domain, and the bridge
+joins the two domains into the observed single 4-node hive.
 
 ## Methodology
 
@@ -35,7 +39,12 @@ Link bridge is fitted in this machine was not recorded at run time.
 - **Peer path:** Metal exposes no direct device-to-device buffer copy; the
   supported route is one IOSurface with an `MTLTexture` view on each device
   ("staging"). A→B is two hops (write + read). A coherence gate (pattern
-  write on A, read-back on B) runs before the sweep; it passed.
+  write on A, read-back on B) runs before the sweep; it passed on both
+  device pairs. Two pairs were swept: devices 0↔1 and 0↔2. PCI functions
+  0x…0656/0x…065a (devices 0/1) are adjacent ids and 0x…06d7 (device 2) is
+  not, so 0↔1 is inferred to be the two dies of one module and 0↔2
+  cross-card over the bridge; the API offers no direct module-membership
+  evidence.
 - **Host path:** `storageModeShared` (host-RAM-backed on Intel) buffers;
   totals include the CPU memset/read pass (approximation, see caveats).
 - **mtl-bench:** Objective-C++ against the system Metal headers; loop
@@ -75,6 +84,21 @@ neighbouring sizes) — clock/DVFS noise, not re-investigated.
 Dependent peer round-trip latency: **170 µs/hop** at 4 KiB, 407 µs/hop at
 1 MiB (dominated by the commit + wait per hop).
 
+### Cross-device peer path, same-module vs cross-card (dev0↔1 vs dev0↔2)
+
+| Metric | dev0↔dev1 (same module?) | dev0↔dev2 (cross-card, bridged) |
+|---|---|---|
+| dev→staging write (peak) | 22.6–24.4 GB/s | 25.0–25.7 GB/s |
+| staging→dev read (peak) | 88.1–97.5 GB/s | 78.9–101.3 GB/s |
+| 2-hop A→B (peak) | 7.3–8.5 GB/s | 8.0–8.8 GB/s |
+| latency @4 KiB | 170 µs/hop | 223 µs/hop |
+
+The two pairs are statistically indistinguishable on bandwidth: the
+staging route's cost is dominated by per-hop commit/wait, not by which
+physical path the bytes take. Any Infinity-Fabric-level advantage of the
+bridged pair (if one exists via this route) is not visible at this
+granularity.
+
 ### Host ↔ GPU (shared buffers, totals incl. CPU pass)
 
 | Direction | 32 MiB | 64 MiB |
@@ -98,6 +122,7 @@ Dependent peer round-trip latency: **170 µs/hop** at 4 KiB, 407 µs/hop at
 ## Raw data
 
 - `raw/2026-09-11-w6800x-duo-copy-paths.json` (291 rows)
+- `raw/2026-09-11-w6800x-duo-crosscard-peer.json` (peer sweep, dev0↔dev2)
 - `raw/2026-09-11-w6800x-duo-api-overhead.json`
 - Environment block: `gpu-probe --json` (same session)
 
@@ -105,13 +130,16 @@ Dependent peer round-trip latency: **170 µs/hop** at 4 KiB, 407 µs/hop at
 
 - **Metal on this driver exposes no direct GPU→GPU copy path**: cross-device
   movement goes through an IOSurface staging region with a per-hop
-  commit/wait. End-to-end A→B reached ~8.5 GB/s.
-- **Staging is not host-resident.** Read-out rates of 88–97 GB/s are far
+  commit/wait. End-to-end A→B reached ~8.5 GB/s, and the measured route
+  shows no bandwidth difference between the same-module and the bridged
+  cross-card pair — the cross-card Infinity Fabric Link bridge brings no
+  measurable benefit to the staging route on this driver/OS.
+- **Staging is not host-resident.** Read-out rates of 79–101 GB/s are far
   above the PCIe Gen3 x16 ceiling (~13 GB/s effective), so the driver places
   IOSurface pages in GPU memory and serves remote reads over the interconnect
   — the exact placement and the role of the xGMI hive are not observable via
   the API and remain to be confirmed with captures.
-- Write-direction hop rates (22–24 GB/s) also exceed the PCIe ceiling;
+- Write-direction hop rates (22–26 GB/s) also exceed the PCIe ceiling;
   posted-write effects may inflate them.
 - Command-buffer commit on this stack costs ~10 µs (empty, pipelined) and a
   committed 1×1 dispatch ~27 µs: latency-sensitive multi-GPU designs should

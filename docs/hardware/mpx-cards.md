@@ -83,12 +83,18 @@ Open questions (capture with `iokit-dump`, measure with `if-bench`):
   Infinity Fabric Link bridge) and whether they differ
 - Bandwidth/latency of the cross-card IF hop vs intra-card hop vs PCIe
   fallback (if-bench directions 3 and 5)
-- The 2026-09-11 2× W6800X Duo `gpu-probe` capture shows a single 4-node
-  hive; confirm whether an Infinity Fabric Link bridge was fitted on that
-  machine (a jumpers-only system showing `XGMI_HiveSize = 4` would
-  contradict the hive shapes in the table above)
+- Link widths per hop (on-module Infinity Fabric Link jumper vs cross-card
+  Infinity Fabric Link bridge) and whether they differ
+- Bandwidth/latency of the cross-card IF hop vs intra-card hop vs PCIe
+  fallback (if-bench directions 3 and 5)
 - Per-slot constraints: which slot pairs the bridge supports, and per-CPU
   attachment on dual-socket parts (see [host-machines.md](host-machines.md))
+
+Resolved: the 2× W6800X Duo capture machine (2026-09-11, source of the
+`XGMI_HiveSize = 4` observation) has an **Infinity Fabric Link bridge
+fitted**, consistent with the "1 hive × 4 nodes" bridge row in the table
+above. The unbridged jumpers-only hive shape (expected 2 hives × 2 nodes)
+is still uncaptured — see the Vega II Duo bullet above.
 
 ## Related
 

@@ -40,8 +40,9 @@ Captured on Mac Pro (2019), macOS 26.6.2 (25G83), 2× Radeon Pro W6800X Duo,
 Still open:
 
 - How do two physical cards differ in enumeration from one Duo card? (All
-  four devices here share one hive across two cards; a non-bridged pairing
-  or a single Duo card should be captured for comparison.)
+  four devices here share one hive across two cards, which have an Infinity
+  Fabric Link bridge fitted; a non-bridged pairing or a single Duo card
+  should be captured for comparison.)
 - `XGMI_NodeIndex` semantics across hive shapes (see `tools/gpu-probe/README.md`
   TODO).
 
