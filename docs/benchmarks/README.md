@@ -7,12 +7,13 @@ to the tool + exact command and the raw JSON in [raw/](raw/).
 
 | Date | Report | Tool |
 |---|---|---|
-| 2026-09-11 | [2× W6800X Duo + RX 6900 XT — full device matrix (fresh capture)](2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md) | `if-bench` (p2p default + staging), `mtl-bench` |
+| 2026-09-11 | [2× W6800X Duo — copy paths (p2p, staging, local, host) and API overhead](2026-09-11-w6800x-duo-copy-paths.md) | `if-bench` (p2p default + staging), `mtl-bench` |
 | 2026-09-11 | [2× W6800X Duo — peer-group P2P pull matrix (all 6 die pairs)](2026-09-11-w6800x-duo-p2p-peer-group-matrix.md) | `if-bench` (default p2p route) |
 
-Earlier 2026-09-11 captures (copy-paths report, debug-build matrix, addenda)
-were replaced by a single clean idle-machine session; superseded files
-remain recoverable from git history.
+Captures are scoped to the two W6800X Duo modules; a third GPU (RX 6900
+XT, display) is present in the machine listings but not measured. All
+superseded captures — including the 2026-09-11 runs that measured the
+6900 XT — remain recoverable from git history.
 
 Reproduce on MPX hardware with `./scripts/run-all-benchmarks.sh` (JSON
 lands in `build/results/`).

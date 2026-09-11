@@ -39,12 +39,12 @@ Measured numbers live in [../benchmarks/](../benchmarks/) and are produced by
 
 | Card | Direction | Buffer size | Bandwidth | Latency | Report |
 |---|---|---|---|---|---|
-| W6800X Duo | local (device → own VRAM) | 64 MiB | 70.3–74.3 GB/s | 3.9–4.3 µs/copy @4 KiB | [2026-09-11 matrix](../benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md) |
-| W6800X Duo ×2 | dev → staging write (blit hop) | 64 MiB | 24–25 GB/s (kernel hop: 106–192) | — | [2026-09-11 matrix](../benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md) |
-| W6800X Duo ×2 | staging → dev read (blit hop) | 64 MiB | 88–106 GB/s | — | [2026-09-11 matrix](../benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md) |
-| W6800X Duo ×2 | dev → dev (within one hive, via staging, 2 hops) | 64 MiB/hop | 8.3–8.6 GB/s (blit hops) / 9.7–10.2 GB/s (kernel hops) | 121–148 µs/hop @4 KiB | [2026-09-11 matrix](../benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md) |
-| W6800X Duo ×2 | dev → dev (p2p pull, on-module Infinity Fabric Link jumper) | 64 MiB | 38.1–38.8 GB/s (blit) / 37.2–37.8 (kernel read) | — | [2026-09-11 p2p matrix](../benchmarks/2026-09-11-w6800x-duo-p2p-peer-group-matrix.md) |
-| W6800X Duo ×2 | dev → dev (p2p pull, cross-card Infinity Fabric Link bridge) | 64 MiB | 36.8–37.8 GB/s (blit) / 34.0–36.9 (kernel read) | — | [2026-09-11 p2p matrix](../benchmarks/2026-09-11-w6800x-duo-p2p-peer-group-matrix.md) |
+| W6800X Duo | local (device → own VRAM) | 64 MiB | 70.3–74.3 GB/s | 3.9–4.3 µs/copy @4 KiB | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
+| W6800X Duo ×2 | dev → staging write (blit hop) | 64 MiB | 24–25 GB/s (kernel hop: 106–192) | — | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
+| W6800X Duo ×2 | staging → dev read (blit hop) | 64 MiB | 88–106 GB/s | — | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
+| W6800X Duo ×2 | dev → dev (within one hive, via staging, 2 hops) | 64 MiB/hop | 8.3–8.6 GB/s (blit hops) / 9.7–10.2 GB/s (kernel hops) | 121–148 µs/hop @4 KiB | [2026-09-11](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
+| W6800X Duo ×2 | dev → dev (p2p pull, on-module Infinity Fabric Link jumper) | 64 MiB | 36.9–37.0 GB/s (blit) / 35.8–36.2 (kernel read) | 54–61 µs/pull (serialized) | [2026-09-11 p2p matrix](../benchmarks/2026-09-11-w6800x-duo-p2p-peer-group-matrix.md) |
+| W6800X Duo ×2 | dev → dev (p2p pull, cross-card Infinity Fabric Link bridge) | 64 MiB | 37.6–38.5 GB/s (blit) / 36.9–37.5 (kernel read) | 54–98 µs/pull (serialized) | [2026-09-11 p2p matrix](../benchmarks/2026-09-11-w6800x-duo-p2p-peer-group-matrix.md) |
 
 Findings from the 2026-09-11 reports, pending independent confirmation:
 
@@ -52,8 +52,9 @@ Findings from the 2026-09-11 reports, pending independent confirmation:
   peer-group remote buffer views (`MTLDevice.peerGroupID` +
   `MTLBuffer newRemoteBufferViewForDevice:`, public macOS 10.15+ APIs).
   The xGMI hive appears as one Metal peer group; a device whose queue
-  **pulls** (reads) a view of the peer's VRAM reaches 36.8–38.8 GB/s with
-  no IOSurface staging. Views are read-only on AMDRadeonX6000 — the pull
+  **pulls** (reads) a view of the peer's VRAM reaches 36.9–38.5 GB/s with
+  no IOSurface staging (jumper and bridge indistinguishable within
+  session variance). Views are read-only on AMDRadeonX6000 — the pull
   direction is mandatory ([gotchas](../metal/gotchas.md)). Cross-hive
   pairs (hive member ↔ non-hive card) are not in a peer group and return
   nil views. (An earlier revision of this document claimed no direct

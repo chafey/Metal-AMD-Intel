@@ -33,5 +33,5 @@ instead. The measured API surface is identical.
   (`MTLResourceStorageModePrivate`), not bare `MTLStorageMode*` values —
   the driver asserts otherwise.
 
-First results: `docs/benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md`
+First results: `docs/benchmarks/2026-09-11-w6800x-duo-copy-paths.md`
 ("Metal API overhead" section).

@@ -33,8 +33,9 @@ mode (**default `p2p`** — peer-group remote buffer views, the fastest route
 within a hive, skipped with a note outside one; `blit`/`kernel` are the
 two-hop IOSurface staging route, the fallback for pairs with no shared peer
 group and for push-style sharing; `both` = blit+kernel staging, `all` =
-those + p2p; each path gets its own coherence gate; latency rows are
-blit-only). On the 2026-09-11 capture
+those + p2p; each path gets its own coherence gate; p2p latency rows are
+serialized isolated pulls (µs per one-way pull), staging latency rows
+dependent two-hop chains). On the 2026-09-11 capture
 kernel hops move ~8× more
 bytes in isolation, but within one xGMI hive the two-hop chain plateaus at
 ~11 GB/s either way — the ceiling is the cross-device staging step, not
@@ -53,7 +54,7 @@ individually, then every device pair for peer.
 IOSurface peer transfers are **two hops** (A→staging, staging→B) plus a
 commit/wait
 per hop. The API does not reveal where staging pages physically live; on
-the 2026-09-11 capture (`docs/benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md`)
+the 2026-09-11 capture (`docs/benchmarks/2026-09-11-w6800x-duo-copy-paths.md`)
 read rates far exceeded the PCIe ceiling, so the driver evidently does not
 keep them in host RAM — but attributing traffic to the Infinity Fabric
 Link jumper/bridge from these numbers alone is not sound. Those rows report
@@ -61,7 +62,11 @@ Link jumper/bridge from these numbers alone is not sound. Those rows report
 
 `p2p` rows (staging-free pulls) move **one hop**: bytes = buffer size, and
 the seconds value is per single pull, so p2p and per-hop staging rows are
-directly comparable. The coherence gate reseeds the source with a
+directly comparable. p2p **latency** rows (4 KiB → 4 MiB) time single
+pulls, each committed and waited individually, alternating directions;
+reported as µs per one-way pull including submission (observed floor
+54–61 µs). The staging route's µs/hop rows are dependent two-hop chains —
+different protocols, don't read them as the same measurement. The coherence gate reseeds the source with a
 *different* changing pattern each round and verifies in both directions —
 repeated pulls of identical bytes would pass even if the reader's caches
 served stale lines. Remote views are read-only on the AMDRadeonX6000

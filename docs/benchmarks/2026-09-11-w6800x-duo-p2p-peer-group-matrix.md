@@ -1,6 +1,7 @@
 # Benchmark Report: 2× W6800X Duo — peer-group P2P pull matrix (all 6 die pairs)
 
-- **Date:** 2026-09-11
+- **Date:** 2026-09-11 (p2p pass includes latency rows; supersedes an
+  earlier same-day p2p capture without them)
 - **Author:** repo maintainer
 - **Tool:** `if-bench` (repo @ Phase 3 + peer-group P2P path), Release build
   (`tools/.build/release/if-bench`)
@@ -9,9 +10,10 @@
   (p2p is the default `--peer-path`), with (A,B) ∈ {(1,2), (3,4), (1,3),
   (1,4), (2,3), (2,4)} — size range 4 KiB → 64 MiB, powers of two
 
-Companion to [the full-device-matrix report](2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md),
-which adds the staging fallback, local/host routes, the RX 6900 XT, and
-full machine details. Both come from one clean idle-machine session.
+Companion to [the Duo copy-paths report](2026-09-11-w6800x-duo-copy-paths.md),
+which adds the staging fallback, local/host routes, and full machine
+details. Scope is the two Duo modules only; the machine's third GPU
+(RX 6900 XT, display) is deliberately not measured here.
 
 ## Machine
 
@@ -37,13 +39,20 @@ the other four pairs cross cards over the **Infinity Fabric Link bridge**.
   CPU-reseeded *changing* patterns are pulled and verified in both
   directions. **All 6/6 pairs passed.** A failed gate drops p2p rows; none
   did here.
-- **Timing:** `n` pulls pipelined in one command buffer after one warm
-  batch; reported seconds are per single pull. Blit (`copyFromBuffer`) and
-  compute-kernel reads of the same remote view are both swept, both
-  directions per pair. Release build throughout.
-- **Caveat:** `n` pulls of one buffer can be Infinity-Cache-assisted
-  (128 MB per die): plateau numbers are same-buffer upper bounds, not
-  cold-data numbers.
+- **Bandwidth timing:** `n` pulls pipelined in one command buffer after
+  one warm batch; reported seconds are per single pull. Blit
+  (`copyFromBuffer`) and compute-kernel reads of the same remote view are
+  both swept, both directions per pair. Release build throughout.
+- **Latency timing (`p2pLatency`):** alternating single pulls (B reads
+  A's view, then A reads B's view), **each in its own command buffer with
+  commit+wait** — every pull is a fully serialized transaction. Reported
+  as µs per one-way pull (total ÷ 2·roundTrips, 200 round trips), sizes
+  4 KiB → 4 MiB. Not data-dependent (views are read-only, so a dependent
+  chain would need two hops); includes command-submission cost.
+- **Caveats:** `n` pulls of one buffer can be Infinity-Cache-assisted
+  (128 MB per die): plateau numbers are same-buffer upper bounds. Bandwidth
+  moves ±1–1.5 GB/s between sessions (see conclusions); quote ranges, not
+  points.
 
 ## Results
 
@@ -51,51 +60,75 @@ Blit pulls, GB/s (range = the pair's two directions):
 
 | Pair | Link | 1 MiB | 8 MiB | 32 MiB | 64 MiB |
 |---|---|---|---|---|---|
-| dev1↔2 | jumper | 32.4–34.1 | 35.1–36.1 | 37.9–38.0 | 38.1–38.3 |
-| dev3↔4 | jumper | 31.9–35.2 | 36.5–36.7 | 38.2–38.3 | **38.4–38.8** |
-| dev1↔3 | bridge | 33.6–34.3 | 32.1–35.7 | 37.0–37.4 | 37.5–37.8 |
-| dev1↔4 | bridge | 31.0–32.9 | 33.8–35.4 | 36.0–36.6 | 37.0–37.1 |
-| dev2↔3 | bridge | 31.6–33.7 | 34.6–35.2 | 36.3–36.6 | 36.8–37.0 |
-| dev2↔4 | bridge | 32.8–34.1 | 32.2–35.5 | 37.0–37.1 | 37.4–37.7 |
+| dev1↔2 | jumper | 30.1–32.8 | 35.2–35.7 | 36.8–37.0 | 37.0 |
+| dev3↔4 | jumper | 31.9–32.7 | 34.9–35.5 | 36.2 | 36.9–37.0 |
+| dev1↔3 | bridge | 31.8–33.8 | 35.8–36.0 | 37.3–37.5 | 37.6–37.7 |
+| dev1↔4 | bridge | 33.1–33.6 | 34.0–34.5 | 37.4–38.0 | **38.3–38.4** |
+| dev2↔3 | bridge | 34.7–34.9 | 34.8–36.8 | 37.6–37.9 | **38.3–38.5** |
+| dev2↔4 | bridge | 32.9–34.2 | 35.5–36.3 | 37.0–37.1 | 37.8–37.9 |
 
 Full-size curve (min–max GB/s across all six pairs, both directions):
 
 | Size | blit pull | kernel pull |
 |---|---|---|
-| 4 KiB | 1.5–2.3 | 0.3–0.4 |
-| 16 KiB | 6.2–7.9 | 1.4–1.7 |
-| 64 KiB | 17.8–19.4 | 4.4–5.6 |
-| 256 KiB | 27.1–29.5 | 14.5–15.2 |
-| 1 MiB | 31.0–35.2 | 23.2–25.9 |
-| 4 MiB | 32.0–36.8 | 27.9–32.8 |
-| 16 MiB | 35.5–38.0 | 32.8–36.4 |
-| 64 MiB | 36.8–38.8 | 34.0–37.8 |
+| 4 KiB | 1.9–2.4 | 0.3–0.4 |
+| 16 KiB | 7.1–8.0 | 1.4–1.6 |
+| 64 KiB | 14.8–19.7 | 3.7–5.8 |
+| 256 KiB | 25.7–29.8 | 14.3–15.2 |
+| 1 MiB | 30.1–34.9 | 20.4–25.7 |
+| 4 MiB | 32.4–36.6 | 22.1–32.3 |
+| 16 MiB | 35.1–37.5 | 28.3–36.1 |
+| 64 MiB | 36.9–38.5 | 35.8–37.5 |
 
 Compute-kernel pulls read the same remote views without the blitter; they
 run 1–3 GB/s below blit at ≥32 MiB and fall away sharply at small sizes.
+
+**Pull latency** (µs per one-way serialized pull, commit+wait each;
+median-of-sizes view of the sweep):
+
+| Pair | Link | 4 KiB | 64 KiB | 1 MiB | 4 MiB |
+|---|---|---|---|---|---|
+| dev1↔2 | jumper | 61.3 | 58.8 | 97.6 | 227.2 |
+| dev3↔4 | jumper | 54.3 | 73.6 | 84.3 | 228.8 |
+| dev1↔3 | bridge | 58.1 | 67.2 | 86.4 | 224.4 |
+| dev1↔4 | bridge | 58.8 | 59.1 | 82.1 | 219.4 |
+| dev2↔3 | bridge | 56.3 | 98.0 | 99.6 | 223.9 |
+| dev2↔4 | bridge | 60.7 | 54.2 | 84.9 | 224.7 |
+
+Small pulls floor at **54–61 µs** regardless of pair or link (the
+1 MiB/4 MiB rows grow with transfer time because, unlike the bandwidth
+sweep, serialized pulls do not pipeline). For comparison, the IOSurface
+staging route measures 121–148 µs per hop in a *dependent two-hop chain*
+(different protocol; see the matrix report).
 
 ## Raw data
 
 6 JSON captures in [`raw/`](raw/) shared with the matrix report:
 `2026-09-11-matrix-if-bench-peer-p2p-dev{1-2,3-4,1-3,1-4,2-3,2-4}.json`.
 Each contains the device table (with `peerGroupIDHex`), machine block,
-coherence notes, and per-size rows for both paths and directions. The four
-dev0 pair files (`…-p2p-0-{1..4}.json`) hold the cross-hive skip note.
+coherence notes, per-size bandwidth rows for both paths and directions,
+and latency rows (4 KiB → 4 MiB). Cross-hive pairs (hive die ↔ the
+unmeasured dev0) skip with a `devices not in a common Metal peer group`
+note; the tool was verified to emit that note-and-skip, and the
+supporting captures live in git history.
 
 ## Conclusions
 
 - **The xGMI hive behaves as six equivalent fast P2P paths:** every pair
-  plateaus at 36.8–38.8 GB/s (peak 38.8 GB/s, dev3↔4 jumper).
-  This is ~4× the best IOSurface staging chain (~10 GB/s) measured on the
-  same session, at one hop instead of two.
-- **Jumper vs bridge barely matters above ~32 MiB:** the jumper edge is a
-  consistent ~1–1.5 GB/s across pairs and directions, but under the
-  repeated-buffer cache caveat it should be quoted as small-but-real, not
-  as a link-width measurement.
-- **Bandwidth knee is early:** 31–35 GB/s already at 1 MiB and within
-  ~3% of plateau by 16 MiB; below ~256 KiB per-pull overhead dominates
-  (~3/4 of plateau by 256 KiB). Kernel reads of remote views are viable
-  but strictly worse than blit at every size here.
+  plateaus at 36.9–38.5 GB/s (peak 38.5 GB/s) at one hop, ~4× the best
+  two-hop IOSurface staging chain (~10 GB/s).
+- **Jumper vs bridge is indistinguishable session-to-session:** an
+  earlier capture showed jumper ~1–1.5 GB/s ahead; this capture shows the
+  top pair on the *bridge*. Treat jumper and bridge as equivalent for
+  capacity planning (both ≥36.9 GB/s plateau), and quote bandwidth as
+  ranges with ±1.5 GB/s session variance.
+- **Latency floor ≈ 55–60 µs per one-way pull** (serialized, submission +
+  link), half the per-hop cost of the staging dependent chain — and a
+  remote-view protocol needs one pull per transfer where staging needs
+  two hops.
+- **Bandwidth knee is early:** ≥30 GB/s from 1 MiB, within ~3% of plateau
+  by 16 MiB. Kernel reads of remote views are viable but strictly worse
+  than blit at every size here.
 - **Coherence held:** destination-side pulls observed CPU-reseeded,
   changing source content on every round in both directions — the
   visibility property a llama.cpp/toshllm-style remote-view protocol

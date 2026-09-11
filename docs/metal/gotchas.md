@@ -69,8 +69,10 @@ symptom, affected configuration, workaround, and OS/driver version observed.
   improve it — the penalty sits at the hive boundary, not the hop engine
 - **Repro:** `swift run --package-path tools if-bench -- --device-a <hive-die>
   --device-b <non-hive-gpu> --mode peer --peer-path blit --json` (the
-  staging route must be named explicitly; the tool default is `p2p`; see
-  `docs/benchmarks/2026-09-11-6900xt-plus-w6800x-duo-full-matrix.md`)
+  staging route must be named explicitly; the tool default is `p2p`;
+  supporting 2026-09-11 raw captures measured on a hive + non-hive pair
+  were removed from `docs/benchmarks/raw/` and are recoverable from git
+  history)
 - **Workaround:** keep IOSurface-based cross-device sharing inside one
   xGMI hive; for hive↔non-hive movement budget PCIe-class bandwidth and
   batch heavily, or stage via host memory explicitly

@@ -39,7 +39,9 @@ func printUsage() {
                             destination-side pulls; skipped with a note when the
                             devices share no peer group. blit/kernel = the two-hop
                             IOSurface staging route, the fallback for pairs
-                            outside a peer group; latency rows are blit-only)
+                            outside a peer group; p2p latency rows are isolated
+                            serialized pulls, staging latency rows dependent
+                            chains)
           --mode M[,M...]   comma-separated from bw|latency|peer|host|concurrent
                             (or 'all'; default all)
           --list-devices    print the device table and exit
@@ -353,7 +355,9 @@ if opts.modes.contains("peer"), let b = ctxB {
             }
             notes.append("p2p = destination-side pulls of remote buffer views within "
                 + "peer group 0x" + String(gidA, radix: 16) + "; remote views are "
-                + "read-only on this driver; p2p rows move one hop, bytes = buffer size")
+                + "read-only on this driver; p2p rows move one hop, bytes = buffer "
+                + "size; p2p latency rows are serialized isolated pulls "
+                + "(commit+wait each), microseconds per one-way pull")
             for s in sizes {
                 progress("p2p sweep \(s) bytes")
                 if let t = p2pBandwidth(ctxA, b, size: s) {
@@ -369,6 +373,12 @@ if opts.modes.contains("peer"), let b = ctxB {
                 if ctxA.copyPipeline != nil,
                    let t = p2pBandwidth(b, ctxA, size: s, useKernel: true) {
                     bandwidthRow("\(labelB)->\(labelA) (p2p pull)", "p2p-kernel", bytes: s, seconds: t)
+                }
+            }
+            for s in sizes where s <= 4_194_304 {  // same cap as local ping-pong sweeps
+                progress("p2p latency \(s) bytes")
+                if let t = p2pLatency(ctxA, b, size: s, roundTrips: 200) {
+                    latencyRow("\(labelA)<->\(labelB) (p2p pull)", bytes: s, secondsPerHop: t)
                 }
             }
             continue

@@ -3,63 +3,63 @@
     {
       "index" : 0,
       "name" : "AMD Radeon RX 6900 XT",
-      "pciRegistryEntryID" : "0x0000000100000747",
+      "pciRegistryEntryID" : "0x0000000100000740",
       "pciService" : "display",
       "peerGroupIDHex" : "0x0000000000000000",
       "recommendedMaxWorkingSetSize" : 17163091968,
-      "registryIDHex" : "0x0000000100000cf6"
+      "registryIDHex" : "0x0000000100000da3"
     },
     {
       "index" : 1,
       "infinityFabricLinks" : "1",
       "name" : "AMD Radeon PRO W6800X Duo",
-      "pciRegistryEntryID" : "0x00000001000007b9",
+      "pciRegistryEntryID" : "0x0000000100000655",
       "pciService" : "GFX0",
       "peerGroupIDHex" : "0x4cf5577a51a24576",
       "recommendedMaxWorkingSetSize" : 34342961152,
-      "registryIDHex" : "0x0000000100000d1a",
-      "xgmiEnabled" : "1",
-      "xgmiHiveSize" : "4",
-      "xgmiNodeIndex" : "2"
-    },
-    {
-      "index" : 2,
-      "infinityFabricLinks" : "1",
-      "name" : "AMD Radeon PRO W6800X Duo",
-      "pciRegistryEntryID" : "0x00000001000007b5",
-      "pciService" : "GFX0",
-      "peerGroupIDHex" : "0x4cf5577a51a24576",
-      "recommendedMaxWorkingSetSize" : 34342961152,
-      "registryIDHex" : "0x0000000100000d00",
+      "registryIDHex" : "0x0000000100000e01",
       "xgmiEnabled" : "1",
       "xgmiHiveSize" : "4",
       "xgmiNodeIndex" : "3"
     },
     {
-      "index" : 3,
+      "index" : 2,
       "infinityFabricLinks" : "1",
       "name" : "AMD Radeon PRO W6800X Duo",
-      "pciRegistryEntryID" : "0x00000001000006d4",
+      "pciRegistryEntryID" : "0x00000001000006ca",
       "pciService" : "GFX0",
       "peerGroupIDHex" : "0x4cf5577a51a24576",
       "recommendedMaxWorkingSetSize" : 34342961152,
-      "registryIDHex" : "0x0000000100000cfb",
+      "registryIDHex" : "0x0000000100000d92",
       "xgmiEnabled" : "1",
       "xgmiHiveSize" : "4",
       "xgmiNodeIndex" : "1"
     },
     {
-      "index" : 4,
+      "index" : 3,
       "infinityFabricLinks" : "1",
       "name" : "AMD Radeon PRO W6800X Duo",
-      "pciRegistryEntryID" : "0x00000001000006d8",
+      "pciRegistryEntryID" : "0x00000001000006d0",
       "pciService" : "GFX0",
       "peerGroupIDHex" : "0x4cf5577a51a24576",
       "recommendedMaxWorkingSetSize" : 34342961152,
-      "registryIDHex" : "0x0000000100000ccb",
+      "registryIDHex" : "0x0000000100000d93",
       "xgmiEnabled" : "1",
       "xgmiHiveSize" : "4",
       "xgmiNodeIndex" : "0"
+    },
+    {
+      "index" : 4,
+      "infinityFabricLinks" : "1",
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "pciRegistryEntryID" : "0x0000000100000659",
+      "pciService" : "GFX0",
+      "peerGroupIDHex" : "0x4cf5577a51a24576",
+      "recommendedMaxWorkingSetSize" : 34342961152,
+      "registryIDHex" : "0x0000000100000d8d",
+      "xgmiEnabled" : "1",
+      "xgmiHiveSize" : "4",
+      "xgmiNodeIndex" : "2"
     }
   ],
   "machine" : {
@@ -93,7 +93,7 @@
     "osBuild" : "25G83"
   },
   "notes" : [
-    "p2p = destination-side pulls of remote buffer views within peer group 0x4cf5577a51a24576; remote views are read-only on this driver; p2p rows move one hop, bytes = buffer size"
+    "p2p = destination-side pulls of remote buffer views within peer group 0x4cf5577a51a24576; remote views are read-only on this driver; p2p rows move one hop, bytes = buffer size; p2p latency rows are serialized isolated pulls (commit+wait each), microseconds per one-way pull"
   ],
   "options" : {
     "deviceA" : 1,
@@ -113,482 +113,548 @@
     {
       "copyPath" : "p2p",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 2.23,
+      "gbytesPerSecond" : 2.0899999999999999,
       "kind" : "bandwidth",
-      "seconds" : 1.84000830078125e-06,
+      "seconds" : 1.9557651367187499e-06,
       "sizeBytes" : 4096
     },
     {
       "copyPath" : "p2p",
+      "direction" : "dev2->dev1 (p2p pull)",
+      "gbytesPerSecond" : 2.1099999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 1.9431918945312501e-06,
+      "sizeBytes" : 4096
+    },
+    {
+      "copyPath" : "p2p-kernel",
+      "direction" : "dev1->dev2 (p2p pull)",
+      "gbytesPerSecond" : 0.40999999999999998,
+      "kind" : "bandwidth",
+      "seconds" : 9.9174941406249992e-06,
+      "sizeBytes" : 4096
+    },
+    {
+      "copyPath" : "p2p-kernel",
+      "direction" : "dev2->dev1 (p2p pull)",
+      "gbytesPerSecond" : 0.38,
+      "kind" : "bandwidth",
+      "seconds" : 1.0671336425781251e-05,
+      "sizeBytes" : 4096
+    },
+    {
+      "copyPath" : "p2p",
+      "direction" : "dev1->dev2 (p2p pull)",
+      "gbytesPerSecond" : 4.0800000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 2.0083037109374999e-06,
+      "sizeBytes" : 8192
+    },
+    {
+      "copyPath" : "p2p",
+      "direction" : "dev2->dev1 (p2p pull)",
+      "gbytesPerSecond" : 2.8799999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 2.8485502929687501e-06,
+      "sizeBytes" : 8192
+    },
+    {
+      "copyPath" : "p2p-kernel",
+      "direction" : "dev1->dev2 (p2p pull)",
+      "gbytesPerSecond" : 0.81000000000000005,
+      "kind" : "bandwidth",
+      "seconds" : 1.0148976562499999e-05,
+      "sizeBytes" : 8192
+    },
+    {
+      "copyPath" : "p2p-kernel",
+      "direction" : "dev2->dev1 (p2p pull)",
+      "gbytesPerSecond" : 0.73999999999999999,
+      "kind" : "bandwidth",
+      "seconds" : 1.1093138671875e-05,
+      "sizeBytes" : 8192
+    },
+    {
+      "copyPath" : "p2p",
+      "direction" : "dev1->dev2 (p2p pull)",
+      "gbytesPerSecond" : 7.0599999999999996,
+      "kind" : "bandwidth",
+      "seconds" : 2.3211220703125e-06,
+      "sizeBytes" : 16384
+    },
+    {
+      "copyPath" : "p2p",
+      "direction" : "dev2->dev1 (p2p pull)",
+      "gbytesPerSecond" : 7.0999999999999996,
+      "kind" : "bandwidth",
+      "seconds" : 2.3073774414062501e-06,
+      "sizeBytes" : 16384
+    },
+    {
+      "copyPath" : "p2p-kernel",
+      "direction" : "dev1->dev2 (p2p pull)",
+      "gbytesPerSecond" : 1.6200000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 1.01068974609375e-05,
+      "sizeBytes" : 16384
+    },
+    {
+      "copyPath" : "p2p-kernel",
       "direction" : "dev2->dev1 (p2p pull)",
       "gbytesPerSecond" : 1.52,
       "kind" : "bandwidth",
-      "seconds" : 2.6983378906249999e-06,
-      "sizeBytes" : 4096
-    },
-    {
-      "copyPath" : "p2p-kernel",
-      "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 0.41999999999999998,
-      "kind" : "bandwidth",
-      "seconds" : 9.7988286132812493e-06,
-      "sizeBytes" : 4096
-    },
-    {
-      "copyPath" : "p2p-kernel",
-      "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 0.34999999999999998,
-      "kind" : "bandwidth",
-      "seconds" : 1.1758187499999999e-05,
-      "sizeBytes" : 4096
-    },
-    {
-      "copyPath" : "p2p",
-      "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 4.29,
-      "kind" : "bandwidth",
-      "seconds" : 1.9075009765624999e-06,
-      "sizeBytes" : 8192
-    },
-    {
-      "copyPath" : "p2p",
-      "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 3.6000000000000001,
-      "kind" : "bandwidth",
-      "seconds" : 2.2760981445312499e-06,
-      "sizeBytes" : 8192
-    },
-    {
-      "copyPath" : "p2p-kernel",
-      "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 0.72999999999999998,
-      "kind" : "bandwidth",
-      "seconds" : 1.116463818359375e-05,
-      "sizeBytes" : 8192
-    },
-    {
-      "copyPath" : "p2p-kernel",
-      "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 0.71999999999999997,
-      "kind" : "bandwidth",
-      "seconds" : 1.143923876953125e-05,
-      "sizeBytes" : 8192
-    },
-    {
-      "copyPath" : "p2p",
-      "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 6.1799999999999997,
-      "kind" : "bandwidth",
-      "seconds" : 2.6519897460937501e-06,
-      "sizeBytes" : 16384
-    },
-    {
-      "copyPath" : "p2p",
-      "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 7.7699999999999996,
-      "kind" : "bandwidth",
-      "seconds" : 2.10926318359375e-06,
-      "sizeBytes" : 16384
-    },
-    {
-      "copyPath" : "p2p-kernel",
-      "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 1.49,
-      "kind" : "bandwidth",
-      "seconds" : 1.1008146484374999e-05,
-      "sizeBytes" : 16384
-    },
-    {
-      "copyPath" : "p2p-kernel",
-      "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 1.6100000000000001,
-      "kind" : "bandwidth",
-      "seconds" : 1.0198524902343749e-05,
+      "seconds" : 1.079180859375e-05,
       "sizeBytes" : 16384
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 11.66,
+      "gbytesPerSecond" : 12.199999999999999,
       "kind" : "bandwidth",
-      "seconds" : 2.8106528320312501e-06,
+      "seconds" : 2.6851186523437499e-06,
       "sizeBytes" : 32768
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 13.359999999999999,
+      "gbytesPerSecond" : 10.51,
       "kind" : "bandwidth",
-      "seconds" : 2.4526362304687501e-06,
+      "seconds" : 3.1177695312499998e-06,
       "sizeBytes" : 32768
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 2.7799999999999998,
+      "gbytesPerSecond" : 3.1299999999999999,
       "kind" : "bandwidth",
-      "seconds" : 1.1767725097656251e-05,
+      "seconds" : 1.048007958984375e-05,
       "sizeBytes" : 32768
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 3.0600000000000001,
+      "gbytesPerSecond" : 3.02,
       "kind" : "bandwidth",
-      "seconds" : 1.0705216796874999e-05,
+      "seconds" : 1.086597802734375e-05,
       "sizeBytes" : 32768
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 17.98,
+      "gbytesPerSecond" : 18,
       "kind" : "bandwidth",
-      "seconds" : 3.6448388671874999e-06,
+      "seconds" : 3.6404921875e-06,
       "sizeBytes" : 65536
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 18.670000000000002,
+      "gbytesPerSecond" : 17.91,
       "kind" : "bandwidth",
-      "seconds" : 3.5097880859375e-06,
+      "seconds" : 3.6596093749999999e-06,
       "sizeBytes" : 65536
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 4.8099999999999996,
+      "gbytesPerSecond" : 5.7300000000000004,
       "kind" : "bandwidth",
-      "seconds" : 1.36323359375e-05,
+      "seconds" : 1.1444972656250001e-05,
       "sizeBytes" : 65536
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 5.3200000000000003,
+      "gbytesPerSecond" : 3.6800000000000002,
       "kind" : "bandwidth",
-      "seconds" : 1.23077578125e-05,
+      "seconds" : 1.78118935546875e-05,
       "sizeBytes" : 65536
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 24.140000000000001,
+      "gbytesPerSecond" : 22.969999999999999,
       "kind" : "bandwidth",
-      "seconds" : 5.4290839843749999e-06,
+      "seconds" : 5.7057207031249997e-06,
       "sizeBytes" : 131072
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 24.399999999999999,
+      "gbytesPerSecond" : 23.07,
       "kind" : "bandwidth",
-      "seconds" : 5.3723554687499996e-06,
+      "seconds" : 5.6825703124999996e-06,
       "sizeBytes" : 131072
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 8.0800000000000001,
+      "gbytesPerSecond" : 9.6999999999999993,
       "kind" : "bandwidth",
-      "seconds" : 1.6211927734375001e-05,
+      "seconds" : 1.3514482421875e-05,
       "sizeBytes" : 131072
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 5.5199999999999996,
+      "gbytesPerSecond" : 6.8399999999999999,
       "kind" : "bandwidth",
-      "seconds" : 2.3753138671874999e-05,
+      "seconds" : 1.9160632812499998e-05,
       "sizeBytes" : 131072
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 28.920000000000002,
+      "gbytesPerSecond" : 28.199999999999999,
       "kind" : "bandwidth",
-      "seconds" : 9.0646406249999999e-06,
+      "seconds" : 9.2955039062500007e-06,
       "sizeBytes" : 262144
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 27.68,
+      "gbytesPerSecond" : 28.440000000000001,
       "kind" : "bandwidth",
-      "seconds" : 9.4721132812499998e-06,
+      "seconds" : 9.2169609375000002e-06,
       "sizeBytes" : 262144
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 14.99,
+      "gbytesPerSecond" : 14.92,
       "kind" : "bandwidth",
-      "seconds" : 1.7485980468749998e-05,
+      "seconds" : 1.7574136718750001e-05,
       "sizeBytes" : 262144
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 14.890000000000001,
+      "gbytesPerSecond" : 14.699999999999999,
       "kind" : "bandwidth",
-      "seconds" : 1.760317578125e-05,
+      "seconds" : 1.7830835937500001e-05,
       "sizeBytes" : 262144
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 31.57,
+      "gbytesPerSecond" : 31.460000000000001,
       "kind" : "bandwidth",
-      "seconds" : 1.66083046875e-05,
+      "seconds" : 1.6665203124999999e-05,
       "sizeBytes" : 524288
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 32.189999999999998,
+      "gbytesPerSecond" : 31.719999999999999,
       "kind" : "bandwidth",
-      "seconds" : 1.6285796875000001e-05,
+      "seconds" : 1.6529382812499999e-05,
       "sizeBytes" : 524288
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 20.41,
+      "gbytesPerSecond" : 20.129999999999999,
       "kind" : "bandwidth",
-      "seconds" : 2.568871875e-05,
+      "seconds" : 2.604809375e-05,
       "sizeBytes" : 524288
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 20.739999999999998,
+      "gbytesPerSecond" : 15.859999999999999,
       "kind" : "bandwidth",
-      "seconds" : 2.5277726562499999e-05,
+      "seconds" : 3.3058367187499997e-05,
       "sizeBytes" : 524288
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 34.130000000000003,
+      "gbytesPerSecond" : 30.109999999999999,
       "kind" : "bandwidth",
-      "seconds" : 3.0725921874999997e-05,
+      "seconds" : 3.4829296875000001e-05,
       "sizeBytes" : 1048576
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 32.350000000000001,
+      "gbytesPerSecond" : 32.770000000000003,
       "kind" : "bandwidth",
-      "seconds" : 3.2410046874999999e-05,
+      "seconds" : 3.2001734375e-05,
       "sizeBytes" : 1048576
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 25.289999999999999,
+      "gbytesPerSecond" : 24.899999999999999,
       "kind" : "bandwidth",
-      "seconds" : 4.1468953125000003e-05,
+      "seconds" : 4.2108671875000003e-05,
       "sizeBytes" : 1048576
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 25.399999999999999,
+      "gbytesPerSecond" : 24.920000000000002,
       "kind" : "bandwidth",
-      "seconds" : 4.1284078124999999e-05,
+      "seconds" : 4.2077109375000001e-05,
       "sizeBytes" : 1048576
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 34.049999999999997,
+      "gbytesPerSecond" : 34.560000000000002,
       "kind" : "bandwidth",
-      "seconds" : 6.1592499999999997e-05,
+      "seconds" : 6.0686875000000002e-05,
       "sizeBytes" : 2097152
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 33.729999999999997,
+      "gbytesPerSecond" : 34.670000000000002,
       "kind" : "bandwidth",
-      "seconds" : 6.2170625000000006e-05,
+      "seconds" : 6.0496156249999997e-05,
       "sizeBytes" : 2097152
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 28.039999999999999,
+      "gbytesPerSecond" : 28.710000000000001,
       "kind" : "bandwidth",
-      "seconds" : 7.4795218749999998e-05,
+      "seconds" : 7.3046875000000005e-05,
       "sizeBytes" : 2097152
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 25.68,
+      "gbytesPerSecond" : 20.949999999999999,
       "kind" : "bandwidth",
-      "seconds" : 8.1658375000000002e-05,
+      "seconds" : 0.00010010503125,
       "sizeBytes" : 2097152
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 34.340000000000003,
+      "gbytesPerSecond" : 33.189999999999998,
       "kind" : "bandwidth",
-      "seconds" : 0.00012212525,
+      "seconds" : 0.000126378125,
       "sizeBytes" : 4194304
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 34.549999999999997,
+      "gbytesPerSecond" : 35.280000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.00012138218749999999,
+      "seconds" : 0.0001188798125,
       "sizeBytes" : 4194304
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 31.84,
+      "gbytesPerSecond" : 30.879999999999999,
       "kind" : "bandwidth",
-      "seconds" : 0.000131711125,
+      "seconds" : 0.00013581125000000001,
       "sizeBytes" : 4194304
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 32.57,
+      "gbytesPerSecond" : 31.510000000000002,
       "kind" : "bandwidth",
-      "seconds" : 0.0001287805,
+      "seconds" : 0.000133107375,
       "sizeBytes" : 4194304
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 36.100000000000001,
+      "gbytesPerSecond" : 35.25,
       "kind" : "bandwidth",
-      "seconds" : 0.000232350125,
+      "seconds" : 0.00023800487499999999,
       "sizeBytes" : 8388608
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 35.07,
+      "gbytesPerSecond" : 35.659999999999997,
       "kind" : "bandwidth",
-      "seconds" : 0.00023922312500000001,
+      "seconds" : 0.000235264,
       "sizeBytes" : 8388608
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 33.060000000000002,
+      "gbytesPerSecond" : 32.729999999999997,
       "kind" : "bandwidth",
-      "seconds" : 0.00025375987500000002,
+      "seconds" : 0.00025631137500000003,
       "sizeBytes" : 8388608
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 33.82,
+      "gbytesPerSecond" : 32.969999999999999,
       "kind" : "bandwidth",
-      "seconds" : 0.00024807025000000001,
+      "seconds" : 0.00025441949999999999,
       "sizeBytes" : 8388608
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 37.5,
+      "gbytesPerSecond" : 36.340000000000003,
       "kind" : "bandwidth",
-      "seconds" : 0.000447436625,
+      "seconds" : 0.00046167199999999999,
       "sizeBytes" : 16777216
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 37.670000000000002,
+      "gbytesPerSecond" : 36.090000000000003,
       "kind" : "bandwidth",
-      "seconds" : 0.00044540649999999998,
+      "seconds" : 0.000464830125,
       "sizeBytes" : 16777216
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 35.649999999999999,
+      "gbytesPerSecond" : 34.689999999999998,
       "kind" : "bandwidth",
-      "seconds" : 0.000470566625,
+      "seconds" : 0.00048363600000000002,
       "sizeBytes" : 16777216
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 34.68,
+      "gbytesPerSecond" : 28.260000000000002,
       "kind" : "bandwidth",
-      "seconds" : 0.00048377149999999998,
+      "seconds" : 0.00059376587499999998,
       "sizeBytes" : 16777216
     },
     {
       "copyPath" : "p2p",
-      "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 37.920000000000002,
-      "kind" : "bandwidth",
-      "seconds" : 0.00088480649999999998,
-      "sizeBytes" : 33554432
-    },
-    {
-      "copyPath" : "p2p",
-      "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 37.950000000000003,
-      "kind" : "bandwidth",
-      "seconds" : 0.00088427487499999997,
-      "sizeBytes" : 33554432
-    },
-    {
-      "copyPath" : "p2p-kernel",
       "direction" : "dev1->dev2 (p2p pull)",
       "gbytesPerSecond" : 36.789999999999999,
       "kind" : "bandwidth",
-      "seconds" : 0.00091210062499999999,
+      "seconds" : 0.00091213774999999997,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "p2p",
+      "direction" : "dev2->dev1 (p2p pull)",
+      "gbytesPerSecond" : 37.020000000000003,
+      "kind" : "bandwidth",
+      "seconds" : 0.00090637537499999997,
+      "sizeBytes" : 33554432
+    },
+    {
+      "copyPath" : "p2p-kernel",
+      "direction" : "dev1->dev2 (p2p pull)",
+      "gbytesPerSecond" : 35.460000000000001,
+      "kind" : "bandwidth",
+      "seconds" : 0.00094627274999999999,
       "sizeBytes" : 33554432
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 36.899999999999999,
+      "gbytesPerSecond" : 31.890000000000001,
       "kind" : "bandwidth",
-      "seconds" : 0.00090928125000000004,
+      "seconds" : 0.0010523202499999999,
       "sizeBytes" : 33554432
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 38.259999999999998,
+      "gbytesPerSecond" : 36.979999999999997,
       "kind" : "bandwidth",
-      "seconds" : 0.00175389775,
+      "seconds" : 0.0018147291250000001,
       "sizeBytes" : 67108864
     },
     {
       "copyPath" : "p2p",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 38.140000000000001,
+      "gbytesPerSecond" : 37.039999999999999,
       "kind" : "bandwidth",
-      "seconds" : 0.001759502,
+      "seconds" : 0.0018116219999999999,
       "sizeBytes" : 67108864
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev1->dev2 (p2p pull)",
-      "gbytesPerSecond" : 37.479999999999997,
+      "gbytesPerSecond" : 35.770000000000003,
       "kind" : "bandwidth",
-      "seconds" : 0.0017904085,
+      "seconds" : 0.0018760315,
       "sizeBytes" : 67108864
     },
     {
       "copyPath" : "p2p-kernel",
       "direction" : "dev2->dev1 (p2p pull)",
-      "gbytesPerSecond" : 37.210000000000001,
+      "gbytesPerSecond" : 36.119999999999997,
       "kind" : "bandwidth",
-      "seconds" : 0.00180362025,
+      "seconds" : 0.001857898375,
       "sizeBytes" : 67108864
+    },
+    {
+      "direction" : "dev1<->dev2 (p2p pull)",
+      "kind" : "latency",
+      "sizeBytes" : 4096,
+      "usPerHop" : 61.259999999999998
+    },
+    {
+      "direction" : "dev1<->dev2 (p2p pull)",
+      "kind" : "latency",
+      "sizeBytes" : 8192,
+      "usPerHop" : 60.270000000000003
+    },
+    {
+      "direction" : "dev1<->dev2 (p2p pull)",
+      "kind" : "latency",
+      "sizeBytes" : 16384,
+      "usPerHop" : 63.920000000000002
+    },
+    {
+      "direction" : "dev1<->dev2 (p2p pull)",
+      "kind" : "latency",
+      "sizeBytes" : 32768,
+      "usPerHop" : 61.460000000000001
+    },
+    {
+      "direction" : "dev1<->dev2 (p2p pull)",
+      "kind" : "latency",
+      "sizeBytes" : 65536,
+      "usPerHop" : 58.759999999999998
+    },
+    {
+      "direction" : "dev1<->dev2 (p2p pull)",
+      "kind" : "latency",
+      "sizeBytes" : 131072,
+      "usPerHop" : 63.490000000000002
+    },
+    {
+      "direction" : "dev1<->dev2 (p2p pull)",
+      "kind" : "latency",
+      "sizeBytes" : 262144,
+      "usPerHop" : 63.770000000000003
+    },
+    {
+      "direction" : "dev1<->dev2 (p2p pull)",
+      "kind" : "latency",
+      "sizeBytes" : 524288,
+      "usPerHop" : 83.200000000000003
+    },
+    {
+      "direction" : "dev1<->dev2 (p2p pull)",
+      "kind" : "latency",
+      "sizeBytes" : 1048576,
+      "usPerHop" : 97.640000000000001
+    },
+    {
+      "direction" : "dev1<->dev2 (p2p pull)",
+      "kind" : "latency",
+      "sizeBytes" : 2097152,
+      "usPerHop" : 158.63999999999999
+    },
+    {
+      "direction" : "dev1<->dev2 (p2p pull)",
+      "kind" : "latency",
+      "sizeBytes" : 4194304,
+      "usPerHop" : 227.22
     }
   ],
   "tool" : "if-bench",

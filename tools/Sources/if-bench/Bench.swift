@@ -375,11 +375,44 @@ func p2pBandwidth(_ from: DeviceCtx, _ to: DeviceCtx, size: Int,
     warm.waitUntilCompleted()
     guard let cb = to.queue.makeCommandBuffer() else { return nil }
     let seconds = measuredSeconds {
-        enqueue(cb)
+        _ = enqueue(cb)
         cb.commit()
         cb.waitUntilCompleted()
     }
     return seconds / Double(n)
+}
+
+/// P2P pull latency: alternating single pulls (B reads a view of A's
+/// buffer, then A reads a view of B's buffer), each in its own command
+/// buffer with commit+wait — every pull is a fully serialized transaction,
+/// so this measures submission + link round-trip cost per one-way pull,
+/// comparable to the staging route's per-hop latency rows. Returns seconds
+/// per one-way pull. Not data-dependent (remote views are read-only, so a
+/// dependent chain would need two hops); labelled as such in the report.
+func p2pLatency(_ a: DeviceCtx, _ b: DeviceCtx, size: Int,
+                roundTrips: Int) -> Double? {
+    guard let bufA = a.buffer(size), let bufB = b.buffer(size),
+          let viewAonB = remoteBufferView(bufA, on: b.device),
+          let viewBonA = remoteBufferView(bufB, on: a.device)
+    else { return nil }
+    func pull(_ reader: DeviceCtx, view: MTLBuffer, dst: MTLBuffer) -> Bool {
+        guard let cb = reader.queue.makeCommandBuffer(),
+              let enc = cb.makeBlitCommandEncoder() else { return false }
+        enc.copy(from: view, sourceOffset: 0, to: dst, destinationOffset: 0, size: size)
+        enc.endEncoding()
+        cb.commit()
+        cb.waitUntilCompleted()
+        return true
+    }
+    guard pull(b, view: viewAonB, dst: bufB), pull(a, view: viewBonA, dst: bufA)
+    else { return nil }
+    let seconds = measuredSeconds {
+        for _ in 0..<roundTrips {
+            _ = pull(b, view: viewAonB, dst: bufB)
+            _ = pull(a, view: viewBonA, dst: bufA)
+        }
+    }
+    return seconds / Double(2 * roundTrips)
 }
 
 /// P2P correctness gate: N rounds where the CPU reseeds the source pattern
