@@ -38,9 +38,7 @@ option.)
 | 2× Radeon Pro W6800X Duo, Link jumpers only | 4× Navi 21 | 4× 32 GB GDDR6 (128 GB) | 512 GB/s per GPU | cards **not** IF connected; jumper joins GPUs within each module | 2 hives × 2 nodes |
 | 2× Radeon Pro W6800X Duo, Link bridge | 4× Navi 21 | 4× 32 GB GDDR6 (128 GB) | 512 GB/s per GPU | bridge joins the two module hives | 1 hive × 4 nodes |
 | 2× Radeon Pro W6900X, Link bridge | 2× Navi 21 | 2× 32 GB GDDR6 (64 GB) | 512 GB/s per GPU | supported | 1 hive × 2 nodes |
-| 2× Radeon Pro W6900X, no Link bridge | 2× Navi 21 | 2× 32 GB GDDR6 (64 GB) | 512 GB/s per GPU | cards **not** IF connected | – |
 | 2× Radeon Pro Vega II, Link bridge | 2× Vega 20 | 2× 32 GB HBM2 (64 GB) | 1 TB/s per GPU | supported | 1 hive × 2 nodes |
-| 2× Radeon Pro Vega II, no Link bridge | 2× Vega 20 | 2× 32 GB HBM2 (64 GB) | 1 TB/s per GPU | cards **not** IF connected | – |
 | 2× Radeon Pro Vega II Duo, Link jumpers only | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) | 1 TB/s per GPU | cards **not** IF connected; jumper joins GPUs within each module | 2 hives × 2 nodes |
 | 2× Radeon Pro Vega II Duo, Link bridge | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) | 1 TB/s per GPU | ⚠️¹ | 1 hive × 4 nodes (unverified) |
 
