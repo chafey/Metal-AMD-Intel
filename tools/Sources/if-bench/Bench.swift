@@ -390,16 +390,26 @@ func p2pBandwidth(_ from: DeviceCtx, _ to: DeviceCtx, size: Int,
 /// per one-way pull. Not data-dependent (remote views are read-only, so a
 /// dependent chain would need two hops); labelled as such in the report.
 func p2pLatency(_ a: DeviceCtx, _ b: DeviceCtx, size: Int,
-                roundTrips: Int) -> Double? {
+                roundTrips: Int, useKernel: Bool = false) -> Double? {
     guard let bufA = a.buffer(size), let bufB = b.buffer(size),
           let viewAonB = remoteBufferView(bufA, on: b.device),
           let viewBonA = remoteBufferView(bufB, on: a.device)
     else { return nil }
     func pull(_ reader: DeviceCtx, view: MTLBuffer, dst: MTLBuffer) -> Bool {
-        guard let cb = reader.queue.makeCommandBuffer(),
-              let enc = cb.makeBlitCommandEncoder() else { return false }
-        enc.copy(from: view, sourceOffset: 0, to: dst, destinationOffset: 0, size: size)
-        enc.endEncoding()
+        guard let cb = reader.queue.makeCommandBuffer() else { return false }
+        if useKernel, let pipeline = reader.copyPipeline,
+           let enc = cb.makeComputeCommandEncoder() {
+            // same aligned uint4 kernel as p2pBandwidth (uchar4 would read
+            // stale cached data on remote views; see docs/metal/gotchas.md)
+            reader.dispatch(pipeline, encoder: enc,
+                            bindings: [(0, view), (1, dst)],
+                            count: UInt32(size / 16), countIndex: 2)
+            enc.endEncoding()
+        } else {
+            guard let enc = cb.makeBlitCommandEncoder() else { return false }
+            enc.copy(from: view, sourceOffset: 0, to: dst, destinationOffset: 0, size: size)
+            enc.endEncoding()
+        }
         cb.commit()
         cb.waitUntilCompleted()
         return true

@@ -357,7 +357,8 @@ if opts.modes.contains("peer"), let b = ctxB {
                 + "peer group 0x" + String(gidA, radix: 16) + "; remote views are "
                 + "read-only on this driver; p2p rows move one hop, bytes = buffer "
                 + "size; p2p latency rows are serialized isolated pulls "
-                + "(commit+wait each), microseconds per one-way pull")
+                + "(commit+wait each), microseconds per one-way pull; kernel "
+                + "latency rows use the aligned uint4 pull kernel")
             for s in sizes {
                 progress("p2p sweep \(s) bytes")
                 if let t = p2pBandwidth(ctxA, b, size: s) {
@@ -379,6 +380,10 @@ if opts.modes.contains("peer"), let b = ctxB {
                 progress("p2p latency \(s) bytes")
                 if let t = p2pLatency(ctxA, b, size: s, roundTrips: 200) {
                     latencyRow("\(labelA)<->\(labelB) (p2p pull)", bytes: s, secondsPerHop: t)
+                }
+                if ctxA.copyPipeline != nil, b.copyPipeline != nil,
+                   let t = p2pLatency(ctxA, b, size: s, roundTrips: 200, useKernel: true) {
+                    latencyRow("\(labelA)<->\(labelB) (p2p pull, kernel)", bytes: s, secondsPerHop: t)
                 }
             }
             continue

@@ -105,6 +105,45 @@ sweep, serialized pulls do not pipeline). For comparison, the IOSurface
 staging route measures 121–148 µs per hop in a *dependent two-hop chain*
 (different protocol; see the matrix report).
 
+## Follow-up (2026-09-12): kernel pull vs blit pull *latency*
+
+`if-bench`'s serialized p2p latency pass gained a kernel-pull variant
+(aligned `uint4` dispatch — the alignment contract in
+[gotchas](../metal/gotchas.md) forbids `uchar4`), re-run on the two
+representative pairs:
+
+- `if-bench --device-a 1 --device-b 2 --mode peer --peer-path p2p --max-size 4194304 --json` → `raw/2026-09-12-if-bench-p2p-latency-1-2.json` (on-module, jumper)
+- same with `--device-b 3` → `raw/2026-09-12-if-bench-p2p-latency-1-3.json` (cross-card, bridge)
+
+µs per one-way serialized pull (commit+wait each); the two pairs agreed
+within noise at every size, so they are merged:
+
+| Size | blit pull | kernel pull | kernel/blit |
+|---|---|---|---|
+| 4 KiB – 64 KiB | 58–64 | 160–179 | **2.4–2.8×** |
+| 128 KiB – 512 KiB | 67–88 | 165–188 | 2.1–2.7× |
+| 1 MiB | 99–105 | 194 | 1.8–2.0× |
+| 2 MiB | 166–171 | 219–220 | 1.3× |
+| 4 MiB | 227–229 | 286–290 | 1.3× |
+
+Findings:
+
+1. **Yes — kernel pulls pay ~100 µs more fixed cost than blit pulls**:
+   the serialized floor is ~160–180 µs versus blit's ~57–65 µs. On this
+   driver the compute submission path is *worse* for small remote
+   operations, reversing the intuition that bypassing the copy engine
+   should be leaner.
+2. The gap is fixed cost, so transfer time dilutes it (~1.3× by 2–4 MiB),
+   but the kernel path is never *faster* than blit at any size measured.
+3. On-module and cross-card-via-bridge pairs are indistinguishable
+   again (dev1↔2 vs dev1↔3, every size).
+4. Consistent with the [TP-decode sim follow-up](2026-09-12-w6800x-duo-tp-decode-sim.md):
+   in tp-sim the fixed cost is per command buffer, not per pull, so
+   `kernel`/`fused` pull modes (one or two dispatches inside one CB per
+   reduce) land within run-to-run noise of `blit`. Where per-op latency
+   matters, blit is the better primitive; use kernel pulls only when
+   fusing them with real compute saves a separate pass.
+
 ## Raw data
 
 6 JSON captures in [`raw/`](raw/) shared with the matrix report:
@@ -114,7 +153,9 @@ coherence notes, per-size bandwidth rows for both paths and directions,
 and latency rows (4 KiB → 4 MiB). Cross-hive pairs (hive die ↔ the
 unmeasured dev0) skip with a `devices not in a common Metal peer group`
 note; the tool was verified to emit that note-and-skip, and the
-supporting captures live in git history.
+supporting captures live in git history. The 2026-09-12 kernel-vs-blit
+latency follow-up adds `raw/2026-09-12-if-bench-p2p-latency-1-2.json`
+and `raw/2026-09-12-if-bench-p2p-latency-1-3.json`.
 
 ## Conclusions
 
