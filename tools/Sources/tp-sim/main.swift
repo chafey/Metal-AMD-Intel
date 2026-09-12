@@ -47,7 +47,10 @@ var opts = (
     tokens: 8,
     sync: "both",            // cpu | event | chain | both
     pull: "blit",            // blit | kernel | fused
-    allreduce: "naive"       // naive | twoshot | both
+    allreduce: "naive",      // naive | twoshot | recdbl | both | all
+    overlap: "off",          // off | on | both (naive schedule only)
+    computeUs: 0,            // fake GPU compute time per all-reduce
+    overlapChunks: 2         // chunk count for --overlap on
 )
 var wantJSON = false
 func printUsage() {
@@ -79,7 +82,7 @@ func printUsage() {
                           fused  = one kernel reads the remote views
                                    directly and writes the sum (no local
                                    copy)
-      --allreduce naive|twoshot|both
+      --allreduce naive|twoshot|recdbl|both|all
                           all-reduce schedule:
                           naive   = each rank pulls every peer's full
                                     partial tensor and sums (llama.cpp
@@ -88,6 +91,27 @@ func printUsage() {
                                     shards; moves 2(N-1)/N tensor bytes
                                     per reduce instead of (N-1) — half at
                                     N=4 — but adds a second sync phase
+                          recdbl  = recursive doubling, N=4 only: two
+                                    phases over DISJOINT full-duplex pairs
+                                    (ranks r^1 within a module, then r^2
+                                    across), 2 tensor-bytes and 2 remote
+                                    ops per rank with one reader per source
+                                    buffer per phase
+                          both    = naive + twoshot;  all = all three
+      --overlap off|on|both
+                          simulate the llama.cpp (naive) schedule with
+                          fake GPU compute (--compute-us) and test
+                          comm/compute overlap:
+                          off = compute and pulls share one queue, fully
+                                  serialized (what a naive engine pays)
+                          on  = partial produced in N chunks on the
+                                  compute queue; each chunk's pull+sum
+                                  runs on a SECOND queue (copy engine)
+                                  while the next chunk is still being
+                                  computed
+                          --compute-us US   fake dependent-FMA compute
+                                  time per all-reduce (default 0)
+                          --overlap-chunks 2|4   split count (default 2)
       --json              machine-readable output
     """)
 }
@@ -109,6 +133,9 @@ while ai < args.count {
     case "--sync":    ai += 1; guard ai < args.count else { break }; opts.sync    = args[ai]
     case "--pull":    ai += 1; guard ai < args.count else { break }; opts.pull    = args[ai]
     case "--allreduce": ai += 1; guard ai < args.count else { break }; opts.allreduce = args[ai]
+    case "--overlap":   ai += 1; guard ai < args.count else { break }; opts.overlap = args[ai]
+    case "--compute-us": ai += 1; guard ai < args.count else { break }; opts.computeUs = Int(args[ai]) ?? 0
+    case "--overlap-chunks": ai += 1; guard ai < args.count else { break }; opts.overlapChunks = Int(args[ai]) ?? 2
     case "--json":    wantJSON = true
     case "-h", "--help": printUsage(); exit(0)
     default: die("unknown argument \(args[ai]) (see --help)")
@@ -117,7 +144,13 @@ while ai < args.count {
 }
 guard ["cpu", "event", "chain", "both"].contains(opts.sync) else { die("--sync must be cpu|event|chain|both") }
 guard ["blit", "kernel", "fused"].contains(opts.pull) else { die("--pull must be blit|kernel|fused") }
-guard ["naive", "twoshot", "both"].contains(opts.allreduce) else { die("--allreduce must be naive|twoshot|both") }
+guard ["naive", "twoshot", "recdbl", "both", "all"].contains(opts.allreduce) else { die("--allreduce must be naive|twoshot|recdbl|both|all") }
+guard ["off", "on", "both"].contains(opts.overlap) else { die("--overlap must be off|on|both") }
+if opts.overlap != "off" {
+    guard [2, 4].contains(opts.overlapChunks) else { die("--overlap-chunks must be 2 or 4") }
+    guard opts.hidden % (4 * opts.overlapChunks) == 0
+    else { die("--hidden must divide into --overlap-chunks slices of 16-byte multiples") }
+}
 guard opts.hidden % 4 == 0 else { die("--hidden must be a multiple of 4 (16-byte pull slots)") }
 
 // MARK: - Metal setup
@@ -256,6 +289,20 @@ kernel void agAssemble(device const float *own [[buffer(0)]],
         out[idx] = (s == myShard) ? own[idx - s * shardElts] : gather[idx];
     }
 }
+// Fake per-layer compute for the overlap experiment: writes `value` (so the
+// correctness value scheme still holds) after a dependent-FMA spin tuned to
+// approximate `iters` * (measured ns/iter) of GPU time. The spin result is
+// stored to `scratch` so the compiler cannot eliminate the loop.
+kernel void fakeCompute(device float *out [[buffer(0)]],
+                        device float *scratch [[buffer(1)]],
+                        constant float &value [[buffer(2)]],
+                        constant uint &iters [[buffer(3)]],
+                        uint idx [[thread_position_in_grid]]) {
+    float x = float(idx | 1);
+    for (uint i = 0; i < iters; ++i) { x = fma(x, 1.0000001f, 1.0f); }
+    scratch[idx] = x;
+    out[idx] = value;
+}
 """
 
 final class RankCtx {
@@ -270,13 +317,22 @@ final class RankCtx {
     let rsFusedPL: MTLComputePipelineState
     let agFusedPL: MTLComputePipelineState
     let agAssemblePL: MTLComputePipelineState
+    let fakePL: MTLComputePipelineState
+    let commQueue: MTLCommandQueue   // second queue: overlap-mode pulls run here
     let partial: MTLBuffer      // this rank's partial tensor (private VRAM)
     let pulls: MTLBuffer        // peerCount slots of hidden floats
     let sumOut: MTLBuffer       // private VRAM (verify copies out to shared)
+    let scratch: MTLBuffer      // fakeCompute anti-DCE sink
     let shardOut: MTLBuffer     // 2-shot: this rank's finished shard (private;
                                 // peers read it via remote views in the AG phase)
+    let pairSum: MTLBuffer      // recdbl: this rank's 2-rank pair sum (private;
+                                // the cross-pair partner reads it via pairSumView)
     var views: [MTLBuffer] = [] // remote views of peers' partials (peer order)
     var shardViews: [MTLBuffer] = [] // remote views of peers' shardOuts (peer order)
+    var pairSumView: MTLBuffer?     // recdbl: remote view of cross-source r^2's pairSum
+    // fakeCompute calibration (measured per device, filled after init):
+    var spinBaseUs = 0.0        // CB+launch overhead at iters = 0
+    var spinItersPerUs = 0.0    // dependent-FMA iterations per microsecond
 
     init?(metalIndex: Int, rank: Int, bytes: Int, peerCount: Int, shardBytes: Int) {
         let dev = allDevices[metalIndex]
@@ -296,18 +352,25 @@ final class RankCtx {
               let agp = try? dev.makeComputePipelineState(function: agf),
               let aaf = lib.makeFunction(name: "agAssemble"),
               let aap = try? dev.makeComputePipelineState(function: aaf),
+              let fcf = lib.makeFunction(name: "fakeCompute"),
+              let fcp = try? dev.makeComputePipelineState(function: fcf),
+              let q2 = dev.makeCommandQueue(),
               let partial = dev.makeBuffer(length: bytes, options: .storageModePrivate),
               let pulls = dev.makeBuffer(length: bytes * peerCount, options: .storageModePrivate),
               let sumOut = dev.makeBuffer(length: bytes, options: .storageModePrivate),
-              let shardOut = dev.makeBuffer(length: shardBytes, options: .storageModePrivate)
+              let scratch = dev.makeBuffer(length: bytes, options: .storageModePrivate),
+              let shardOut = dev.makeBuffer(length: shardBytes, options: .storageModePrivate),
+              let pairSum = dev.makeBuffer(length: bytes, options: .storageModePrivate)
         else { return nil }
         self.index = metalIndex; self.rank = rank
         self.device = dev; self.queue = q
         self.producePL = pp; self.sumPL = sp
         self.pullPL = cp; self.fusedPL = fp
         self.rsFusedPL = rsp; self.agFusedPL = agp; self.agAssemblePL = aap
+        self.fakePL = fcp; self.commQueue = q2
         self.partial = partial; self.pulls = pulls; self.sumOut = sumOut
-        self.shardOut = shardOut
+        self.scratch = scratch
+        self.shardOut = shardOut; self.pairSum = pairSum
     }
 
     func grid(_ pl: MTLComputePipelineState, encoder: MTLComputeCommandEncoder, count: Int) {
@@ -352,6 +415,19 @@ for r in 0..<ranks.count {
         ranks[r].shardViews.append(v)
     }
 }
+// Recursive doubling needs exactly N=4: phases run over disjoint
+// full-duplex pairs (r^1 = same-module partner, r^2 = cross-card source),
+// and N=2 would degenerate to the naive one-pull schedule anyway.
+let wantRecdbl = opts.allreduce == "recdbl" || opts.allreduce == "all"
+if wantRecdbl {
+    guard ranks.count == 4 else { die("--allreduce recdbl requires exactly 4 devices") }
+    for r in 0..<4 {
+        let c = r ^ 2
+        guard let v = remoteBufferView(ranks[c].pairSum, on: ranks[r].device)
+        else { die("nil remote view of rank \(c) pairSum on rank \(r)") }
+        ranks[r].pairSumView = v
+    }
+}
 
 // One shared event per writer rank; value = global reduce index, monotonic
 // across tokens and shared by all ranks (same reduce -> same value).
@@ -374,6 +450,25 @@ for rc in ranks {
     guard let e1 = rc.device.makeSharedEvent(), let e2 = rc.device.makeSharedEvent()
     else { die("makeSharedEvent failed on device \(rc.index)") }
     rsDone.append(e1); agDone.append(e2)
+}
+// Recursive-doubling phase events (same semantics): "rank r finished
+// phase-1 pair sum / phase-2 cross-pair exchange of reduce u".
+var rd1Done: [MTLSharedEvent] = []
+var rd2Done: [MTLSharedEvent] = []
+for rc in ranks {
+    guard let e1 = rc.device.makeSharedEvent(), let e2 = rc.device.makeSharedEvent()
+    else { die("makeSharedEvent failed on device \(rc.index)") }
+    rd1Done.append(e1); rd2Done.append(e2)
+}
+// Overlap-simulation events: "rank r produced chunk k of reduce u"
+// (chunkDone) and "rank r's comm queue finished summing chunk k"
+// (commDone). Values encode base+k with base advancing by chunks/reduce.
+var chunkDone: [MTLSharedEvent] = []
+var commDone: [MTLSharedEvent] = []
+for rc in ranks {
+    guard let e1 = rc.device.makeSharedEvent(), let e2 = rc.device.makeSharedEvent()
+    else { die("makeSharedEvent failed on device \(rc.index)") }
+    chunkDone.append(e1); commDone.append(e2)
 }
 
 // MARK: - Command buffer construction (all pre-encoded; timed region
@@ -645,6 +740,144 @@ func encodeAGCB(_ rc: RankCtx, eventSync: Bool, reduceSeq: UInt64) -> MTLCommand
     return cb
 }
 
+// MARK: - Recursive-doubling schedule (N=4, pull-only adaptation)
+//
+// Two phases, each a set of DISJOINT full-duplex pairs (the regime this
+// driver measured as additively scaling, ~46–48 GB/s per pair at once),
+// with exactly ONE remote reader per source buffer per phase — the
+// fan-in that makes the naive concurrent schedule collapse never forms.
+//   phase 1 (p = rank^1, same module): pairSum = own + partner partial
+//   phase 2 (c = rank^2, cross module): sumOut = own pairSum + partner pairSum
+// 2 remote reads per rank per reduce (naive: 3; twoshot: 6) at 2 tensor
+// bytes. Both phases reuse fusedSum/sumN/pullCopy with np = 1.
+// Dependency graph per reduce (seq v), acyclic like twoshot's:
+//   produce: wait rd1Done[p] >= v-1 (partner read my partial in ITS phase 1),
+//            signal events[r] = v
+//   rd1    : wait events[p] >= v, rd2Done[c] >= v-1 (c read my pairSum in
+//            ITS phase 2 last reduce), signal rd1Done[r] = v
+//   rd2    : wait rd1Done[c] >= v, signal rd2Done[r] = v
+
+/// Index into rc.views of peer rank p (views are in ascending peer order).
+func viewSlot(of rc: RankCtx, peer p: Int) -> Int { p < rc.rank ? p : p - 1 }
+
+func encodeProduceRD(_ rc: RankCtx, eventSync: Bool, reduceSeq: UInt64) -> MTLCommandBuffer? {
+    guard let cb = rc.queue.makeCommandBuffer() else { return nil }
+    if eventSync, reduceSeq > 1 {
+        cb.encodeWaitForEvent(rd1Done[rc.rank ^ 1], value: reduceSeq - 1)
+    }
+    encodeProduceBody(cb, rc)
+    return cb
+}
+
+func encodeRD1CB(_ rc: RankCtx, eventSync: Bool, reduceSeq: UInt64) -> MTLCommandBuffer? {
+    guard let cb = rc.queue.makeCommandBuffer() else { return nil }
+    if eventSync {
+        cb.encodeWaitForEvent(events[rc.rank ^ 1], value: reduceSeq)
+        if reduceSeq > 1 {
+            cb.encodeWaitForEvent(rd2Done[rc.rank ^ 2], value: reduceSeq - 1)
+        }
+    }
+    let view = rc.views[viewSlot(of: rc, peer: rc.rank ^ 1)]
+    if opts.pull == "fused" {
+        if let enc = cb.makeComputeCommandEncoder() {
+            enc.setComputePipelineState(rc.fusedPL)
+            enc.setBuffer(rc.partial, offset: 0, index: 0)
+            enc.setBuffer(view, offset: 0, index: 1)
+            enc.setBuffer(rc.partial, offset: 0, index: 2)   // unused (np == 1)
+            enc.setBuffer(rc.partial, offset: 0, index: 3)   // unused
+            enc.setBuffer(rc.pairSum, offset: 0, index: 4)
+            let np = UInt32(1)
+            let n = UInt32(opts.hidden)
+            withUnsafeBytes(of: np) { enc.setBytes($0.baseAddress!, length: 4, index: 5) }
+            withUnsafeBytes(of: n) { enc.setBytes($0.baseAddress!, length: 4, index: 6) }
+            rc.grid(rc.fusedPL, encoder: enc, count: opts.hidden)
+            enc.endEncoding()
+        }
+    } else {
+        if opts.pull == "kernel" {
+            let n4 = tensorBytes / 4
+            if let enc = cb.makeComputeCommandEncoder() {
+                enc.setComputePipelineState(rc.pullPL)
+                enc.setBuffer(view, offset: 0, index: 0)
+                enc.setBuffer(rc.pulls, offset: 0, index: 1)
+                enc.dispatchThreads(MTLSize(width: n4, height: 1, depth: 1),
+                                    threadsPerThreadgroup: MTLSize(width: 256, height: 1, depth: 1))
+                enc.endEncoding()
+            }
+        } else if let enc = cb.makeBlitCommandEncoder() {
+            enc.copy(from: view, sourceOffset: 0, to: rc.pulls, destinationOffset: 0, size: tensorBytes)
+            enc.endEncoding()
+        }
+        if let enc = cb.makeComputeCommandEncoder() {
+            enc.setComputePipelineState(rc.sumPL)
+            enc.setBuffer(rc.partial, offset: 0, index: 0)
+            enc.setBuffer(rc.pulls, offset: 0, index: 1)
+            enc.setBuffer(rc.pairSum, offset: 0, index: 2)
+            let np = UInt32(1)
+            let n = UInt32(opts.hidden)
+            withUnsafeBytes(of: np) { enc.setBytes($0.baseAddress!, length: 4, index: 3) }
+            withUnsafeBytes(of: n) { enc.setBytes($0.baseAddress!, length: 4, index: 4) }
+            rc.grid(rc.sumPL, encoder: enc, count: opts.hidden)
+            enc.endEncoding()
+        }
+    }
+    cb.encodeSignalEvent(rd1Done[rc.rank], value: reduceSeq)
+    return cb
+}
+
+func encodeRD2CB(_ rc: RankCtx, eventSync: Bool, reduceSeq: UInt64) -> MTLCommandBuffer? {
+    guard let cb = rc.queue.makeCommandBuffer() else { return nil }
+    if eventSync {
+        cb.encodeWaitForEvent(rd1Done[rc.rank ^ 2], value: reduceSeq)
+    }
+    guard let view = rc.pairSumView else { return nil }
+    if opts.pull == "fused" {
+        if let enc = cb.makeComputeCommandEncoder() {
+            enc.setComputePipelineState(rc.fusedPL)
+            enc.setBuffer(rc.pairSum, offset: 0, index: 0)
+            enc.setBuffer(view, offset: 0, index: 1)
+            enc.setBuffer(rc.pairSum, offset: 0, index: 2)   // unused (np == 1)
+            enc.setBuffer(rc.pairSum, offset: 0, index: 3)   // unused
+            enc.setBuffer(rc.sumOut, offset: 0, index: 4)
+            let np = UInt32(1)
+            let n = UInt32(opts.hidden)
+            withUnsafeBytes(of: np) { enc.setBytes($0.baseAddress!, length: 4, index: 5) }
+            withUnsafeBytes(of: n) { enc.setBytes($0.baseAddress!, length: 4, index: 6) }
+            rc.grid(rc.fusedPL, encoder: enc, count: opts.hidden)
+            enc.endEncoding()
+        }
+    } else {
+        if opts.pull == "kernel" {
+            let n4 = tensorBytes / 4
+            if let enc = cb.makeComputeCommandEncoder() {
+                enc.setComputePipelineState(rc.pullPL)
+                enc.setBuffer(view, offset: 0, index: 0)
+                enc.setBuffer(rc.pulls, offset: 0, index: 1)
+                enc.dispatchThreads(MTLSize(width: n4, height: 1, depth: 1),
+                                    threadsPerThreadgroup: MTLSize(width: 256, height: 1, depth: 1))
+                enc.endEncoding()
+            }
+        } else if let enc = cb.makeBlitCommandEncoder() {
+            enc.copy(from: view, sourceOffset: 0, to: rc.pulls, destinationOffset: 0, size: tensorBytes)
+            enc.endEncoding()
+        }
+        if let enc = cb.makeComputeCommandEncoder() {
+            enc.setComputePipelineState(rc.sumPL)
+            enc.setBuffer(rc.pairSum, offset: 0, index: 0)
+            enc.setBuffer(rc.pulls, offset: 0, index: 1)
+            enc.setBuffer(rc.sumOut, offset: 0, index: 2)
+            let np = UInt32(1)
+            let n = UInt32(opts.hidden)
+            withUnsafeBytes(of: np) { enc.setBytes($0.baseAddress!, length: 4, index: 3) }
+            withUnsafeBytes(of: n) { enc.setBytes($0.baseAddress!, length: 4, index: 4) }
+            rc.grid(rc.sumPL, encoder: enc, count: opts.hidden)
+            enc.endEncoding()
+        }
+    }
+    cb.encodeSignalEvent(rd2Done[rc.rank], value: reduceSeq)
+    return cb
+}
+
 // MARK: - Correctness gate (event path): produce writes rank+1, sum must
 // equal Σ(1…N) on every rank. Catches event paths that "work" but do not
 // actually make peer writes visible.
@@ -663,10 +896,12 @@ func correctnessGate(_ schedule: String) {
     if schedule == "twoshot" {
         // The gated produce/RS CBs wait on rsDone/agDone >= seq-1; pre-signal
         // those so the single-shot gate is satisfiable.
-        // The gated produce/RS CBs wait on rsDone/agDone >= seq-1; pre-signal
-        // those so the single-shot gate is satisfiable.
         for e in rsDone where e.signaledValue < seq - 1 { e.signaledValue = seq - 1 }
         for e in agDone where e.signaledValue < seq - 1 { e.signaledValue = seq - 1 }
+    }
+    if schedule == "recdbl" {
+        for e in rd1Done where e.signaledValue < seq - 1 { e.signaledValue = seq - 1 }
+        for e in rd2Done where e.signaledValue < seq - 1 { e.signaledValue = seq - 1 }
     }
     var cbs: [MTLCommandBuffer] = []
     if schedule == "naive" {
@@ -683,7 +918,7 @@ func correctnessGate(_ schedule: String) {
         // the GPU-side order legal, commit order only matters for not-deadlock:
         for rc in ranks { cbs[rc.rank * 2].commit() }
         for rc in ranks { cbs[rc.rank * 2 + 1].commit() }
-    } else {
+    } else if schedule == "twoshot" {
         var ps: [MTLCommandBuffer] = []; var rss: [MTLCommandBuffer] = []; var ags: [MTLCommandBuffer] = []
         for rc in ranks {
             guard let produce = encodeProduceCB2(rc, eventSync: true, reduceSeq: seq),
@@ -697,6 +932,20 @@ func correctnessGate(_ schedule: String) {
         for cb in rss { cb.commit() }
         for cb in ags { cb.commit() }
         cbs = ps + rss + ags
+    } else {   // recdbl
+        var ps: [MTLCommandBuffer] = []; var r1: [MTLCommandBuffer] = []; var r2: [MTLCommandBuffer] = []
+        for rc in ranks {
+            guard let produce = encodeProduceRD(rc, eventSync: true, reduceSeq: seq),
+                  let p1 = encodeRD1CB(rc, eventSync: true, reduceSeq: seq),
+                  let p2 = encodeRD2CB(rc, eventSync: true, reduceSeq: seq)
+            else { return }
+            produce.encodeSignalEvent(events[rc.rank], value: seq)
+            ps.append(produce); r1.append(p1); r2.append(p2)
+        }
+        for cb in ps { cb.commit() }
+        for cb in r1 { cb.commit() }
+        for cb in r2 { cb.commit() }
+        cbs = ps + r1 + r2
     }
     for cb in cbs { cb.waitUntilCompleted() }
     let expect = Float((1...ranks.count).reduce(0, +))
@@ -729,9 +978,12 @@ func progress(_ line: String) {
 let reducesPerToken = opts.layers * opts.reduces
 /// Fabric bytes one device pulls per token, per schedule.
 func fabricBytesPerToken(schedule: String) -> Double {
-    let perReduce = schedule == "naive"
-        ? Double(peerCount * tensorBytes)
-        : Double(2 * peerCount * shardBytes)
+    let perReduce: Double
+    switch schedule {
+    case "naive":   perReduce = Double(peerCount * tensorBytes)
+    case "twoshot": perReduce = Double(2 * peerCount * shardBytes)
+    default:        perReduce = Double(2 * tensorBytes)   // recdbl
+    }
     return Double(reducesPerToken) * perReduce
 }
 
@@ -763,7 +1015,7 @@ func runEventSync(schedule: String, tokens: Int, chain: Bool) -> [Double]? {
                     reduce.commit()
                     last.append(reduce)
                 }
-            } else {
+            } else if schedule == "twoshot" {
                 for rc in ranks {
                     guard let produce = encodeProduceCB2(rc, eventSync: true, reduceSeq: v) else { return nil }
                     produce.encodeSignalEvent(events[rc.rank], value: v)
@@ -779,6 +1031,21 @@ func runEventSync(schedule: String, tokens: Int, chain: Bool) -> [Double]? {
                     guard let ag = encodeAGCB(rc, eventSync: true, reduceSeq: v) else { return nil }
                     ag.commit()
                     last.append(ag)
+                }
+            } else {   // recdbl — phases are already concurrency-safe (disjoint pairs), no chain variant
+                for rc in ranks {
+                    guard let produce = encodeProduceRD(rc, eventSync: true, reduceSeq: v) else { return nil }
+                    produce.encodeSignalEvent(events[rc.rank], value: v)
+                    produce.commit()
+                }
+                for rc in ranks {
+                    guard let p1 = encodeRD1CB(rc, eventSync: true, reduceSeq: v) else { return nil }
+                    p1.commit()
+                }
+                for rc in ranks {
+                    guard let p2 = encodeRD2CB(rc, eventSync: true, reduceSeq: v) else { return nil }
+                    p2.commit()
+                    last.append(p2)
                 }
             }
         }
@@ -820,27 +1087,46 @@ func runCPUSync(schedule: String, tokens: Int) -> [Double]? {
                 }
                 for cb in cbs { cb.waitUntilCompleted() }
             } else {
-                // Honest 2-shot CPU cadence: three barriers per reduce
-                // (produce | reduce-scatter | all-gather).
+                // Honest multi-phase CPU cadence: three barriers per reduce.
                 seqCounter += 1
                 let v = seqCounter
-                for rc in ranks {
-                    guard let produce = encodeProduceCB2(rc, eventSync: false, reduceSeq: v) else { return nil }
-                    produce.commit(); cbs.append(produce)
+                if schedule == "twoshot" {
+                    for rc in ranks {
+                        guard let produce = encodeProduceCB2(rc, eventSync: false, reduceSeq: v) else { return nil }
+                        produce.commit(); cbs.append(produce)
+                    }
+                    for cb in cbs { cb.waitUntilCompleted() }
+                    cbs.removeAll(keepingCapacity: true)
+                    for rc in ranks {
+                        guard let rs = encodeRSSCB(rc, eventSync: false, chainWait: -1, reduceSeq: v) else { return nil }
+                        rs.commit(); cbs.append(rs)
+                    }
+                    for cb in cbs { cb.waitUntilCompleted() }
+                    cbs.removeAll(keepingCapacity: true)
+                    for rc in ranks {
+                        guard let ag = encodeAGCB(rc, eventSync: false, reduceSeq: v) else { return nil }
+                        ag.commit(); cbs.append(ag)
+                    }
+                    for cb in cbs { cb.waitUntilCompleted() }
+                } else {   // recdbl
+                    for rc in ranks {
+                        guard let produce = encodeProduceRD(rc, eventSync: false, reduceSeq: v) else { return nil }
+                        produce.commit(); cbs.append(produce)
+                    }
+                    for cb in cbs { cb.waitUntilCompleted() }
+                    cbs.removeAll(keepingCapacity: true)
+                    for rc in ranks {
+                        guard let p1 = encodeRD1CB(rc, eventSync: false, reduceSeq: v) else { return nil }
+                        p1.commit(); cbs.append(p1)
+                    }
+                    for cb in cbs { cb.waitUntilCompleted() }
+                    cbs.removeAll(keepingCapacity: true)
+                    for rc in ranks {
+                        guard let p2 = encodeRD2CB(rc, eventSync: false, reduceSeq: v) else { return nil }
+                        p2.commit(); cbs.append(p2)
+                    }
+                    for cb in cbs { cb.waitUntilCompleted() }
                 }
-                for cb in cbs { cb.waitUntilCompleted() }
-                cbs.removeAll(keepingCapacity: true)
-                for rc in ranks {
-                    guard let rs = encodeRSSCB(rc, eventSync: false, chainWait: -1, reduceSeq: v) else { return nil }
-                    rs.commit(); cbs.append(rs)
-                }
-                for cb in cbs { cb.waitUntilCompleted() }
-                cbs.removeAll(keepingCapacity: true)
-                for rc in ranks {
-                    guard let ag = encodeAGCB(rc, eventSync: false, reduceSeq: v) else { return nil }
-                    ag.commit(); cbs.append(ag)
-                }
-                for cb in cbs { cb.waitUntilCompleted() }
             }
         }
         let us = Double(DispatchTime.now().uptimeNanoseconds - start) / 1000.0
@@ -850,13 +1136,13 @@ func runCPUSync(schedule: String, tokens: Int) -> [Double]? {
 }
 
 var results: [[String: Any]] = []
-func record(_ schedule: String, _ mode: String, perToken: [Double]) {
+func record(_ schedule: String, _ mode: String, perToken: [Double], extra: [String: Any] = [:]) {
     let med = median(perToken)
     guard med > 0 else { return }
     let usPerReduce = med / Double(reducesPerToken)
     let bytesPerTokenPerDevice = fabricBytesPerToken(schedule: schedule)
     let gbps = bytesPerTokenPerDevice / (med / 1e6) / 1e9
-    results.append([
+    var row: [String: Any] = [
         "kind": "tp-sim", "sync": mode, "allreduce": schedule, "pull": opts.pull, "hidden": opts.hidden,
         "layers": opts.layers, "reducesPerLayer": opts.reduces,
         "medianUsPerToken": (med * 100).rounded() / 100,
@@ -865,10 +1151,200 @@ func record(_ schedule: String, _ mode: String, perToken: [Double]) {
         "gbytesPerSecond": (gbps * 100).rounded() / 100,
         "commBoundTokensPerSecond": ((1e6 / med) * 10).rounded() / 10,
         "samples": perToken.count,
-    ])
+    ]
+    for (k, v) in extra { row[k] = v }
+    results.append(row)
 }
 
-let schedules: [String] = opts.allreduce == "both" ? ["naive", "twoshot"] : [opts.allreduce]
+// MARK: - Overlap experiment (--overlap, naive schedule only)
+//
+// Question: on this driver, can a remote-view pull issued on a SECOND
+// command queue (copy engine) run concurrently with fake compute on the
+// first queue, hiding the all-reduce under the matmuls that produce it?
+// llama.cpp-style decode has ~300–500 us of weight-read compute per
+// reduce for 70B TP4, comparable to the ~600 us chain reduce, so the
+// headroom is real IF the hardware overlaps the two.
+//   off: compute CB then full-tensor pull+sum CB, both on queue 1
+//        (serialized; what an engine pays when it puts everything on one
+//        queue and waits on the sum before the next op).
+//   on : partial produced in K chunks on queue 1; after chunk k is
+//        produced (cross-rank event), every rank pulls chunk k of every
+//        peer and sums it ON QUEUE 2 while queue 1 computes chunk k+1.
+//        Pulls still use blits (copy engine — the only engine that can
+//        run alongside compute at all).
+
+
+
+func calibrateSpin(targetUs: Double) {
+    // Measure per-device AT the runtime launch config (tg=64, grid=hidden):
+    // CB overhead (iters=0), FMA rate from a probe, then refine once at the
+    // target duration so `--compute-us` means wall-GPU-µs, not extrapolated
+    // cold-probe µs (kernel launch config changes the dependent-chain rate
+    // ~2.5× on this driver, and clocks drift between probe and run).
+    for rc in ranks {
+        func timeIters(_ it: UInt32) -> Double {
+            var best = Double.greatestFiniteMagnitude
+            for _ in 0..<3 {
+                guard let cb = rc.queue.makeCommandBuffer(),
+                      let enc = cb.makeComputeCommandEncoder() else { return 0 }
+                enc.setComputePipelineState(rc.fakePL)
+                enc.setBuffer(rc.partial, offset: 0, index: 0)
+                enc.setBuffer(rc.scratch, offset: 0, index: 1)
+                var value: Float = 0
+                var iters = it
+                withUnsafeBytes(of: &value) { enc.setBytes($0.baseAddress!, length: 4, index: 2) }
+                withUnsafeBytes(of: &iters) { enc.setBytes($0.baseAddress!, length: 4, index: 3) }
+                enc.dispatchThreads(MTLSize(width: opts.hidden, height: 1, depth: 1),
+                                    threadsPerThreadgroup: MTLSize(width: 64, height: 1, depth: 1))
+                enc.endEncoding()
+                let t0 = DispatchTime.now().uptimeNanoseconds
+                cb.commit(); cb.waitUntilCompleted()
+                best = min(best, Double(DispatchTime.now().uptimeNanoseconds - t0))
+            }
+            return best / 1000.0   // µs
+        }
+        let base = timeIters(0)
+        let probe: UInt32 = 100_000
+        let t = timeIters(probe)
+        var per = (t - base) / Double(probe)   // µs per iteration
+        if targetUs > 0 && per > 0 {
+            let est = UInt32(max(1.0, targetUs * 0.7 / per))   // ~70% busy target
+            let w = timeIters(est)
+            let busy = max(0.001, w - base)
+            per = busy / Double(est)                            // rate at target scale
+        }
+        rc.spinBaseUs = base
+        rc.spinItersPerUs = per > 0.00001 ? 1.0 / per : 0
+        progress("spin calibration rank \(rc.rank): base \(String(format: "%.1f", base)) µs, \(String(format: "%.0f", rc.spinItersPerUs)) iters/µs @target \(String(format: "%.0f", targetUs)) µs")
+    }
+}
+
+/// One fake-compute CB: spins ~us microseconds then writes `value` over
+/// the element range [base, base+els) of the partial (or shard pairSum —
+/// here always the partial), optionally waiting events first.
+func encodeSpinCB(_ rc: RankCtx, us: Double, baseEls: Int, els: Int, value: Float,
+                  waits: [(MTLSharedEvent, UInt64)], queue: MTLCommandQueue) -> MTLCommandBuffer? {
+    guard let cb = queue.makeCommandBuffer() else { return nil }
+    for (e, v) in waits { cb.encodeWaitForEvent(e, value: v) }
+    if let enc = cb.makeComputeCommandEncoder() {
+        enc.setComputePipelineState(rc.fakePL)
+        enc.setBuffer(rc.partial, offset: baseEls * 4, index: 0)
+        enc.setBuffer(rc.scratch, offset: baseEls * 4, index: 1)
+        var v = value
+        var iters = UInt32(max(0.0, (us - rc.spinBaseUs)) * rc.spinItersPerUs)
+        withUnsafeBytes(of: &v) { enc.setBytes($0.baseAddress!, length: 4, index: 2) }
+        withUnsafeBytes(of: &iters) { enc.setBytes($0.baseAddress!, length: 4, index: 3) }
+        enc.dispatchThreads(MTLSize(width: els, height: 1, depth: 1),
+                            threadsPerThreadgroup: MTLSize(width: 64, height: 1, depth: 1))
+        enc.endEncoding()
+    }
+    return cb
+}
+
+func runOverlap(tokens: Int, overlapOn: Bool, chain: Bool) -> [Double]? {
+    let K = overlapOn ? opts.overlapChunks : 1
+    let ce = opts.hidden / K                 // chunk elements this mode
+    let cbt = ce * 4                          // chunk bytes
+    let chunkUs = Double(opts.computeUs) / Double(K)
+    progress("running \(tokens) tokens × \(reducesPerToken) reduces × \(ranks.count) ranks (overlap=\(overlapOn ? "on" : "off")+\(chain ? "chain" : "event"), compute=\(opts.computeUs) µs/reduce, K=\(K))")
+    calibrateSpin(targetUs: chunkUs)
+    // commDone waits reference base-K+k; pre-signal so the first reduce's
+    // produce gates are satisfiable.
+    for e in commDone where e.signaledValue < seqCounter { e.signaledValue = seqCounter }
+    var perToken: [Double] = []
+    for t in 0..<tokens {
+        let start = DispatchTime.now().uptimeNanoseconds
+        var last: [MTLCommandBuffer] = []
+        for _ in 0..<reducesPerToken {
+            let baseV = seqCounter + 1          // this reduce's event base
+            seqCounter += UInt64(K)
+            for k in 0..<K {
+                let v = baseV + UInt64(k)
+                // produce chunk k on the compute queue (queue 1)
+                for rc in ranks {
+                    var waits: [(MTLSharedEvent, UInt64)] = []
+                    // partial chunk region k is re-read by every peer's
+                    // comm for the PREVIOUS reduce: wait their commDone
+                    // (own included — own comm may run on queue 2).
+                    if baseV > UInt64(K) {
+                        let pw = baseV - UInt64(K) + UInt64(k)
+                        for p in peerOrder(of: rc.rank) { waits.append((commDone[p], pw)) }
+                        waits.append((commDone[rc.rank], pw))
+                    }
+                    guard let cb = encodeSpinCB(rc, us: chunkUs, baseEls: k * ce, els: ce,
+                                                value: Float(rc.rank + 1), waits: waits,
+                                                queue: rc.queue)
+                    else { return nil }
+                    cb.encodeSignalEvent(chunkDone[rc.rank], value: v)
+                    cb.commit()
+                }
+                // comm chunk k: queue 2 when overlapping, queue 1 when off
+                for rc in ranks {
+                    let q = overlapOn ? rc.commQueue : rc.queue
+                    guard let cb = q.makeCommandBuffer() else { return nil }
+                    cb.encodeWaitForEvent(chunkDone[rc.rank], value: v)   // own compute (cross-queue when on)
+                    for p in peerOrder(of: rc.rank) { cb.encodeWaitForEvent(chunkDone[p], value: v) }
+                    if chain, rc.rank > 0 {
+                        cb.encodeWaitForEvent(commDone[rc.rank - 1], value: v)
+                    }
+                    let off = overlapOn ? k * cbt : 0
+                    if let enc = cb.makeBlitCommandEncoder() {
+                        for (slot, _) in peerOrder(of: rc.rank).enumerated() {
+                            enc.copy(from: rc.views[slot], sourceOffset: off,
+                                     to: rc.pulls, destinationOffset: slot * cbt,
+                                     size: cbt)
+                        }
+                        enc.endEncoding()
+                    }
+                    if let enc = cb.makeComputeCommandEncoder() {
+                        enc.setComputePipelineState(rc.sumPL)
+                        enc.setBuffer(rc.partial, offset: off, index: 0)
+                        enc.setBuffer(rc.pulls, offset: 0, index: 1)
+                        enc.setBuffer(rc.sumOut, offset: off, index: 2)
+                        let np = UInt32(peerCount)
+                        let n = UInt32(ce)
+                        withUnsafeBytes(of: np) { enc.setBytes($0.baseAddress!, length: 4, index: 3) }
+                        withUnsafeBytes(of: n) { enc.setBytes($0.baseAddress!, length: 4, index: 4) }
+                        rc.grid(rc.sumPL, encoder: enc, count: ce)
+                        enc.endEncoding()
+                    }
+                    cb.encodeSignalEvent(commDone[rc.rank], value: v)
+                    cb.commit()
+                    if k == K - 1 { last.append(cb) }
+                }
+            }
+        }
+        let sem = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .userInteractive).async {
+            for cb in last { cb.waitUntilCompleted() }
+            sem.signal()
+        }
+        if sem.wait(timeout: .now() + 120) == .timedOut { return nil }
+        let us = Double(DispatchTime.now().uptimeNanoseconds - start) / 1000.0
+        if t >= 1 { perToken.append(us) }
+    }
+    return perToken
+}
+
+/// After an overlap run: every rank's sumOut must equal Σ(1…N) (the last
+/// reduce wrote it; fakeCompute writes the same rank+1 values as produce).
+func overlapCheck() -> Bool {
+    let expect = Float((1...ranks.count).reduce(0, +))
+    for rc in ranks {
+        guard let shared = rc.device.makeBuffer(length: tensorBytes, options: .storageModeShared),
+              let cb = rc.queue.makeCommandBuffer(),
+              let enc = cb.makeBlitCommandEncoder()
+        else { return false }
+        enc.copy(from: rc.sumOut, sourceOffset: 0, to: shared, destinationOffset: 0, size: tensorBytes)
+        enc.endEncoding(); cb.commit(); cb.waitUntilCompleted()
+        let p = shared.contents().bindMemory(to: Float.self, capacity: opts.hidden)
+        for k in stride(from: 0, to: opts.hidden, by: 251) where p[k] != expect { return false }
+    }
+    return true
+}
+
+let schedules: [String] = opts.allreduce == "both" ? ["naive", "twoshot"]
+    : opts.allreduce == "all" ? ["naive", "twoshot", "recdbl"] : [opts.allreduce]
 var verifyBySchedule: [String: Bool] = [:]
 for ar in schedules {
     verifyPassed = false
@@ -886,7 +1362,7 @@ for ar in schedules {
             notes.append("event-sync run stalled >60 s (\(ar); possible driver event issue): event mode skipped")
         }
     }
-    if opts.sync == "chain" || opts.sync == "both", verifyPassed {
+    if opts.sync == "chain" || opts.sync == "both", verifyPassed, ar != "recdbl" {
         if let s = runEventSync(schedule: ar, tokens: opts.tokens + 1, chain: true) {
             record(ar, "chain", perToken: s)
         } else {
@@ -897,6 +1373,24 @@ for ar in schedules {
         if let s = runCPUSync(schedule: ar, tokens: opts.tokens + 1) { record(ar, "cpu", perToken: s) }
     }
     verifyBySchedule[ar] = verifyPassed
+}
+
+if opts.overlap != "off" {
+    let modes: [(Bool, Bool)] = opts.overlap == "both"
+        ? [(false, true), (false, false), (true, true), (true, false)]
+        : [(true, true), (true, false)]
+    for (on, chain) in modes {
+        if let s = runOverlap(tokens: opts.tokens + 1, overlapOn: on, chain: chain) {
+            let ok = overlapCheck()
+            if !ok { notes.append("overlap=\(on ? "on" : "off")+\(chain ? "chain" : "event"): sum verification FAILED") }
+            record("naive", "\(on ? "on" : "off")+\(chain ? "chain" : "event")", perToken: s,
+                   extra: ["overlap": on, "computeUs": opts.computeUs,
+                           "overlapChunks": on ? opts.overlapChunks : 1,
+                           "overlapVerify": ok])
+        } else {
+            notes.append("overlap=\(on ? "on" : "off")+\(chain ? "chain" : "event") stalled >120 s: skipped")
+        }
+    }
 }
 
 // MARK: - Report
@@ -912,7 +1406,9 @@ if wantJSON {
                     "reducesPerLayer": opts.reduces, "tokens": opts.tokens,
                     "sync": opts.sync, "pull": opts.pull,
                     "allreduce": opts.allreduce,
-                    "shardElements": shardElts],
+                    "shardElements": shardElts,
+                    "overlap": opts.overlap, "computeUs": opts.computeUs,
+                    "overlapChunks": opts.overlapChunks],
         "verifyPassed": verifyPassed ? true : verifyBySchedule,
         "results": results, "notes": notes,
     ]

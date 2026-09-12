@@ -280,8 +280,154 @@ Practical implications:
    byte-bound workloads (e.g. moving very large activations on
    a dedicated stream) even though it loses for decode.
 
+## Follow-up (2026-09-12): recursive doubling — the crossover 2-shot never reached
+
+`tp-sim` gained `--allreduce recdbl`: a **pull-only recursive doubling**
+schedule for N=4. Two phases run over **disjoint full-duplex pairs** —
+phase 1 over the same-module pairs (rank^1: dies 0↔1 and 2↔3), phase 2
+over the cross-card pairs (rank^2: 0↔2 and 1↔3) — each rank doing one
+read + local sum per phase via `fusedSum`/`sumN` with `np = 1`. Per
+reduce per rank: **2 remote ops and 2×tensor bytes** (naive: 3 and 3;
+twoshot: 6 and 1.5). Unlike 2-shot it cuts bytes *and* ops, and each
+source buffer has exactly one remote reader per phase — so the fan-in
+that makes `event` mode collapse never forms, while disjoint pairs sit
+in the measured additively-scaling regime.
+
+Decode config (hidden=8192 = 32 KiB; µs/reduce; `--allreduce all`;
+gate PASS on every schedule/engine):
+
+| `--pull` | schedule | best mode | µs/reduce | vs naive best |
+|---|---|---|---|---|
+| fused | naive | chain | **606** | — |
+| fused | recdbl | event | 814 | 1.34× slower |
+| fused | twoshot | chain | 3831 | 6.3× slower |
+| blit | naive | chain | **737** | — |
+| blit | recdbl | cpu | 929 | 1.26× slower |
+| blit | twoshot | chain | 4101 | 5.6× slower |
+
+(recdbl has no `chain` variant — its phases are already
+contention-free by construction; the numbers above are each schedule's
+*best* sync mode.) At decode tensor sizes the extra GPU-side dependency
+hop (~200 µs) costs more than one saved remote op saves: **naive+chain
+still wins at 32 KiB.**
+
+But bytes are not free, and recdbl is where the schedule-vs-size
+crossover finally appears (blit, µs/reduce, each schedule's best mode;
+naive figures from the same-day sweep `raw/2026-09-12-tpsim-twoshot-blit*.json`):
+
+| tensor | naive best (chain) | recdbl best | recdbl advantage |
+|---|---|---|---|
+| 32 KiB (70B decode) | 737 | 929 | — (naive) |
+| 1 MiB | 1273 | 952 (cpu) | **1.34×** |
+| 4 MiB (prefill-scale) | 2517 | 1147 (cpu) | **2.20×** |
+
+2-shot's marginal cost per MiB was *higher* than naive's; recdbl's is
+**much lower** (~30 µs/MiB from the 1→4 MiB points vs ~140 for naive),
+so it crosses over between 32 KiB and 1 MiB and keeps widening. Mechanism matches the model: below the
+crossover every schedule is per-op-charge dominated (op count and
+dependency hops are everything); above it, bytes start to bill, and
+recdbl moves 2/3 of naive's bytes on disjoint links at once (additive
+capacity) while keeping one reader per buffer.
+
+Note at 4 MiB recdbl's **cpu-barrier mode beats its event mode**
+(1147 vs 2103): with events, phase 2 of reduce *u* overlaps phase 1 of
+reduce *u+1*, whose sources overlap the still-active phase-2 reads —
+re-introducing fan-in that the clean phase separation was designed to
+avoid. At byte-bound sizes, keep the phases serialized.
+
+Practical upshot for a llama.cpp/toshllm-style engine on this driver:
+
+1. **Decode (32–64 KiB partials): keep the naive pull schedule with
+   serialized pulls** — nothing tested beats ~600–740 µs/reduce.
+2. **Prefill / batched tokens / any ≥ ~256 KiB–1 MiB partial: switch to
+   recursive doubling on the module-disjoint pairs** — up to 2.2× at
+   4 MiB and still growing with size.
+3. A production engine should **pick the schedule by tensor size**
+   (~256 KiB–1 MiB is the crossover zone; pin it per model config).
+
+Raw: `raw/2026-09-12-tpsim-recdbl-{fused,blit}.json` (decode, `--allreduce
+all`), `raw/2026-09-12-tpsim-recdbl-blit-{1mib,4mib}.json` (size sweep).
+Repro: `tools/.build/release/tp-sim --allreduce all --pull fused`.
+
 Raw: `raw/2026-09-12-tpsim-twoshot-{fused,blit,kernel}.json` (decode
 config, `--allreduce both --sync both`) and
 `raw/2026-09-12-tpsim-twoshot-blit-{1mib,4mib}.json` (size sweep,
 `--layers 2..4 --tokens 2..3`). Repro:
 `tools/.build/release/tp-sim --allreduce both --pull fused`.
+
+## Follow-up (2026-09-12): compute/comm overlap via a second command queue — negative result
+
+Every schedule so far bills the all-reduce *on top of* the layer's
+compute. Real engines hide all-reduces under compute with an async
+second stream. `tp-sim` gained `--overlap off|on|both` (naive schedule
+only), `--compute-us US` (fake per-reduce GPU compute via a dependent-
+FMA spin kernel that still writes the correctness value) and
+`--overlap-chunks 2|4`:
+
+- **off** — baseline: spin then pull+sum, all serialized on queue 1.
+- **on** — partial produced in K chunks on queue 1; after chunk k lands
+  (cross-rank `MTLSharedEvent`), every rank pulls+sums chunk k of every
+  peer **on queue 2** while queue 1 computes chunk k+1.
+
+A realistic C for 70B TP4 decode is ~300–500 µs/reduce (35 GB of
+weights per die-quad ÷ 512 GB/s ÷ 160 reduces/token). The spin must be
+calibrated **at the runtime dispatch config** (tg=64) with a refinement
+round at the target duration — a cold long probe at a different config
+mispredicted run durations ~2.5× and corrupted an early sweep.
+
+Decode config (blit pull, hidden=8192 = 32 KiB, K=2, µs/reduce, verify
+PASS in every cell; `raw/2026-09-12-tpsim-overlap-blit-{c0,c200,c500}.json`):
+
+| C (µs/reduce) | off+chain | on+chain | off+event | on+event |
+|---|---|---|---|---|
+| 0    | **838**  | 1645 | 4236 | 5546 |
+| 200  | **978**  | 1766 | 4578 | 5612 |
+| 500  | **1341** | 2611 | 4800 | 5648 |
+
+Fused pull at C=500: off+chain **1279**, on+chain 2677
+(`raw/2026-09-12-tpsim-overlap-fused-c500.json`).
+
+**Overlap never wins.** Two findings:
+
+1. `off+chain ≈ C + ~840` — compute and comm already add ~1:1; with a
+   serialized schedule the whole compute+comm chain costs their sum.
+2. `on+chain ≈ off+chain + 0.8–1.3 ms` — the 2-queue/chunk machinery
+   costs ~800–1200 µs/reduce at decode sizes (K=2 doubles the op count
+   at the exact per-op charge the model says dominates, and the
+   cross-rank chunk events add dependency hops) while hiding
+   essentially *none* of the comm: on+chain grows with C just as fast
+   as off+chain.
+
+**Is that a queue-model limit or a remote-op limit?** A one-GPU control
+(`tools/queue-control.swift`) settles it: a dependent-FMA spin on
+queue 1 against a stream of 16 MiB *local* blits on queue 2, timed
+with per-command-buffer GPU start/end timestamps. The spin's GPU busy
+time is unchanged when the blits run concurrently (228–249 µs either
+way), the blits add nothing measurable to wall time
+(spin-alone 306–329 µs wall vs 311–321 µs with 2 blits queued on the
+second queue vs 333–354 µs serialized on one queue), and even 4
+queued blits hide under the spin (only mildly slowed at the margin).
+**Queues do overlap compute and local blits.** (An earlier pass of
+this control looked opposite; its blits were an overlapping, partly
+out-of-range copy — undefined behaviour — and its per-op wall numbers
+were junk. The timestamped v2 above is the real picture.)
+
+So the driver *can* run a copy engine concurrently with compute; what
+it refuses to overlap is **remote-view work**: every remote op takes
+its serialized ~200 µs charge regardless of which queue issued it,
+behind or in front of compute. Chunking makes that worse, not better,
+because the charge is per-op.
+
+Upshot: **on this driver you cannot hide a TP all-reduce under compute
+with an async stream.** The decode comm tax (~600–740 µs × reduces per
+token with naive+chain) is unavoidable headroom-wise; the only levers
+left are the ones measured above — fewer/smaller remote ops
+(recdbl once bytes dominate, prefill-scale and up) and reducing op
+count itself. An engine should keep all-reduces on the critical path
+and spend engineering effort on the schedule, not on async overlap.
+
+Repro: `tools/.build/release/tp-sim --overlap both --compute-us 500
+--pull blit` (and `--pull fused`); control:
+`swiftc -O tools/queue-control.swift -o /tmp/queue-control &&
+/tmp/queue-control` (uses device index 1, i.e. the first peer-group
+GPU; never device 0, the display card).

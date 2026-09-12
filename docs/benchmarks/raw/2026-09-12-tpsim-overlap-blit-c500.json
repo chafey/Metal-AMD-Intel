@@ -1,0 +1,166 @@
+{
+  "devices" : [
+    {
+      "index" : 1,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    },
+    {
+      "index" : 2,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    },
+    {
+      "index" : 3,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    },
+    {
+      "index" : 4,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    }
+  ],
+  "notes" : [
+
+  ],
+  "options" : {
+    "allreduce" : "naive",
+    "computeUs" : 500,
+    "hidden" : 8192,
+    "layers" : 80,
+    "overlap" : "both",
+    "overlapChunks" : 2,
+    "pull" : "blit",
+    "reducesPerLayer" : 2,
+    "shardElements" : 2048,
+    "sync" : "both",
+    "tokens" : 8
+  },
+  "results" : [
+    {
+      "allreduce" : "naive",
+      "bytesPerTokenPerDevice" : 15728640,
+      "commBoundTokensPerSecond" : 2,
+      "gbytesPerSecond" : 0.029999999999999999,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 509331.14000000001,
+      "pull" : "blit",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "event",
+      "usPerReduce" : 3183.3200000000002
+    },
+    {
+      "allreduce" : "naive",
+      "bytesPerTokenPerDevice" : 15728640,
+      "commBoundTokensPerSecond" : 8.3000000000000007,
+      "gbytesPerSecond" : 0.13,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 121072.53999999999,
+      "pull" : "blit",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "chain",
+      "usPerReduce" : 756.70000000000005
+    },
+    {
+      "allreduce" : "naive",
+      "bytesPerTokenPerDevice" : 15728640,
+      "commBoundTokensPerSecond" : 2.1000000000000001,
+      "gbytesPerSecond" : 0.029999999999999999,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 486662.51000000001,
+      "pull" : "blit",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "cpu",
+      "usPerReduce" : 3041.6399999999999
+    },
+    {
+      "allreduce" : "naive",
+      "bytesPerTokenPerDevice" : 15728640,
+      "commBoundTokensPerSecond" : 4.7000000000000002,
+      "computeUs" : 500,
+      "gbytesPerSecond" : 0.070000000000000007,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 214555.84,
+      "overlap" : false,
+      "overlapChunks" : 1,
+      "overlapVerify" : true,
+      "pull" : "blit",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "off+chain",
+      "usPerReduce" : 1340.97
+    },
+    {
+      "allreduce" : "naive",
+      "bytesPerTokenPerDevice" : 15728640,
+      "commBoundTokensPerSecond" : 1.3,
+      "computeUs" : 500,
+      "gbytesPerSecond" : 0.02,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 768070.28000000003,
+      "overlap" : false,
+      "overlapChunks" : 1,
+      "overlapVerify" : true,
+      "pull" : "blit",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "off+event",
+      "usPerReduce" : 4800.4399999999996
+    },
+    {
+      "allreduce" : "naive",
+      "bytesPerTokenPerDevice" : 15728640,
+      "commBoundTokensPerSecond" : 2.3999999999999999,
+      "computeUs" : 500,
+      "gbytesPerSecond" : 0.040000000000000001,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 417748.20000000001,
+      "overlap" : true,
+      "overlapChunks" : 2,
+      "overlapVerify" : true,
+      "pull" : "blit",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "on+chain",
+      "usPerReduce" : 2610.9299999999998
+    },
+    {
+      "allreduce" : "naive",
+      "bytesPerTokenPerDevice" : 15728640,
+      "commBoundTokensPerSecond" : 1.1000000000000001,
+      "computeUs" : 500,
+      "gbytesPerSecond" : 0.02,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 903716.28000000003,
+      "overlap" : true,
+      "overlapChunks" : 2,
+      "overlapVerify" : true,
+      "pull" : "blit",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "on+event",
+      "usPerReduce" : 5648.2299999999996
+    }
+  ],
+  "tool" : "tp-sim",
+  "verifyPassed" : true,
+  "version" : 3
+}

@@ -40,7 +40,7 @@ sizes the reduce is latency-bound, so the pull path does not matter.
 Kernel/fused loads MUST use naturally aligned types — `uchar4` loads of
 remote views return stale data ([gotchas](../../docs/metal/gotchas.md)).
 
-Two all-reduce schedules are selectable (`--allreduce naive|twoshot|both`):
+Three all-reduce schedules are selectable (`--allreduce naive|twoshot|recdbl|both|all`):
 
 - `naive` (default) — the llama.cpp pattern: every rank pulls every
   peer's **full** partial tensor: (N−1) tensor-bytes per reduce per rank.
@@ -49,6 +49,10 @@ Two all-reduce schedules are selectable (`--allreduce naive|twoshot|both`):
   ranks' finished shards: 2(N−1)/N tensor-bytes (half at N=4) but **6
   remote ops per rank per reduce instead of 3** plus an extra event-gated
   phase (produce → RS → AG, three command buffers per rank).
+- `recdbl` — pull-only recursive doubling (N=4 only): two phases over
+  disjoint full-duplex pairs (rank^1 = same-module pair, rank^2 =
+  cross-card), 2 tensor-bytes and **2 remote ops** per rank per reduce,
+  one reader per source buffer per phase. No `chain` variant needed.
 
 **`twoshot` measured slower than `naive` at every sync mode and pull
 engine (~5–6× in the winning `chain` mode, ~2× in `event`/`cpu`), and
@@ -59,11 +63,32 @@ the [results doc](../../docs/benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md).
 The 2-shot machinery is nonetheless verified correct (gate PASS on all
 three pull engines, including slice-offset remote reads).
 
+**`recdbl` loses to `naive+chain` at decode sizes** (~600–740 µs/reduce
+either way; the extra dependency hop ≈ one saved op) but **wins above
+~1 MiB tensors: 1.34× at 1 MiB, 2.2× at 4 MiB** (cpu-barrier phase
+mode) — the crossover is exactly where bytes start to bill while
+op-count penalties still dominate the alternatives.
+
+**Compute/comm overlap (`--overlap off|on|both --compute-us US
+--overlap-chunks 2|4`) is a negative result.** `on` produces the
+partial in K chunks on queue 1 and pulls+sums each chunk on a second
+queue while the next chunk computes; it is **never faster than the
+serialized `off` baseline** (~800–1300 µs/reduce extra at decode
+sizes, and cost grows with the simulated compute time just as fast).
+A single-GPU control with GPU timestamps shows second-queue *local*
+blits overlap compute at full speed, so this is the driver's
+per-remote-op serialization, not a queue limit — async streams cannot
+hide TP all-reduces on this hardware.
+See the overlap follow-up in the
+[results doc](../../docs/benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md).
+
 ```
 usage: tp-sim [--devices 1,2,3,4] [--hidden N | --hidden-bytes B]
               [--layers L] [--reduces R] [--tokens T]
               [--sync cpu|event|chain|both] [--pull blit|kernel|fused]
-              [--allreduce naive|twoshot|both] [--json]
+              [--allreduce naive|twoshot|recdbl|both|all]
+              [--overlap off|on|both] [--compute-us US]
+              [--overlap-chunks 2|4] [--json]
 ```
 
 Timed region = encode + commit + GPU completion. Command buffers are

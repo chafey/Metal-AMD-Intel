@@ -1,0 +1,162 @@
+{
+  "devices" : [
+    {
+      "index" : 1,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    },
+    {
+      "index" : 2,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    },
+    {
+      "index" : 3,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    },
+    {
+      "index" : 4,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    }
+  ],
+  "notes" : [
+
+  ],
+  "options" : {
+    "allreduce" : "all",
+    "hidden" : 8192,
+    "layers" : 80,
+    "pull" : "fused",
+    "reducesPerLayer" : 2,
+    "shardElements" : 2048,
+    "sync" : "both",
+    "tokens" : 8
+  },
+  "results" : [
+    {
+      "allreduce" : "naive",
+      "bytesPerTokenPerDevice" : 15728640,
+      "commBoundTokensPerSecond" : 2,
+      "gbytesPerSecond" : 0.029999999999999999,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 506803.09000000003,
+      "pull" : "fused",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "event",
+      "usPerReduce" : 3167.52
+    },
+    {
+      "allreduce" : "naive",
+      "bytesPerTokenPerDevice" : 15728640,
+      "commBoundTokensPerSecond" : 10.300000000000001,
+      "gbytesPerSecond" : 0.16,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 96976.770000000004,
+      "pull" : "fused",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "chain",
+      "usPerReduce" : 606.10000000000002
+    },
+    {
+      "allreduce" : "naive",
+      "bytesPerTokenPerDevice" : 15728640,
+      "commBoundTokensPerSecond" : 1.8,
+      "gbytesPerSecond" : 0.029999999999999999,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 569823.26000000001,
+      "pull" : "fused",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "cpu",
+      "usPerReduce" : 3561.4000000000001
+    },
+    {
+      "allreduce" : "twoshot",
+      "bytesPerTokenPerDevice" : 7864320,
+      "commBoundTokensPerSecond" : 1,
+      "gbytesPerSecond" : 0.01,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 1045301.8199999999,
+      "pull" : "fused",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "event",
+      "usPerReduce" : 6533.1400000000003
+    },
+    {
+      "allreduce" : "twoshot",
+      "bytesPerTokenPerDevice" : 7864320,
+      "commBoundTokensPerSecond" : 1.6000000000000001,
+      "gbytesPerSecond" : 0.01,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 612922.37,
+      "pull" : "fused",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "chain",
+      "usPerReduce" : 3830.7600000000002
+    },
+    {
+      "allreduce" : "twoshot",
+      "bytesPerTokenPerDevice" : 7864320,
+      "commBoundTokensPerSecond" : 0.90000000000000002,
+      "gbytesPerSecond" : 0.01,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 1089026.6200000001,
+      "pull" : "fused",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "cpu",
+      "usPerReduce" : 6806.4200000000001
+    },
+    {
+      "allreduce" : "recdbl",
+      "bytesPerTokenPerDevice" : 10485760,
+      "commBoundTokensPerSecond" : 7.7000000000000002,
+      "gbytesPerSecond" : 0.080000000000000002,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 130280.25,
+      "pull" : "fused",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "event",
+      "usPerReduce" : 814.25
+    },
+    {
+      "allreduce" : "recdbl",
+      "bytesPerTokenPerDevice" : 10485760,
+      "commBoundTokensPerSecond" : 2.7000000000000002,
+      "gbytesPerSecond" : 0.029999999999999999,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 374584.59000000003,
+      "pull" : "fused",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "cpu",
+      "usPerReduce" : 2341.1500000000001
+    }
+  ],
+  "tool" : "tp-sim",
+  "verifyPassed" : true,
+  "version" : 3
+}
