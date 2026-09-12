@@ -28,7 +28,12 @@ working set may live on a remote GPU partition.
    flow/link), and ≥5 simultaneous consumers get unstable shares.
    [ceiling report v2](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md).
    Small ops additionally pay a per-in-flight-op penalty
-   ([TP-decode sim](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md)).
+   ([TP-decode sim](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md)),
+   and serialized kernel pulls a further ~100 µs/op over serialized blit
+   pulls (floors ~160–180 µs vs ~57–65 µs; [p2p matrix latency
+   follow-up](../benchmarks/2026-09-11-w6800x-duo-p2p-peer-group-matrix.md#follow-up-2026-09-12-kernel-pull-vs-blit-pull-latency))
+   — one more reason kernel pulls earn their keep only when fused with
+   compute inside the same command buffer.
 3. **One partition per render graph.** Keep all attachments of a render pass
    local to a single partition. *Not yet measured* — the benchmarks here
    cover blit/compute traffic only; treat as unvalidated intuition.

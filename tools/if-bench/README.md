@@ -34,8 +34,12 @@ within a hive, skipped with a note outside one; `blit`/`kernel` are the
 two-hop IOSurface staging route, the fallback for pairs with no shared peer
 group and for push-style sharing; `both` = blit+kernel staging, `all` =
 those + p2p; each path gets its own coherence gate; p2p latency rows are
-serialized isolated pulls (µs per one-way pull), staging latency rows
-dependent two-hop chains). On the 2026-09-11 capture
+serialized isolated pulls (µs per one-way pull) in **both** engines —
+blit and the aligned `uint4` kernel pull (added 2026-09-12; on this
+driver kernel pulls pay a ~100 µs higher fixed cost, ~160–180 µs vs
+blit's ~57–65 µs serialized floor, converging to ~1.3× by 2–4 MiB — see
+the [p2p matrix follow-up](../../docs/benchmarks/2026-09-11-w6800x-duo-p2p-peer-group-matrix.md))
+— while staging latency rows are dependent two-hop chains). On the 2026-09-11 capture
 kernel hops move ~8× more
 bytes in isolation, but within one xGMI hive the two-hop chain plateaus at
 ~11 GB/s either way — the ceiling is the cross-device staging step, not
