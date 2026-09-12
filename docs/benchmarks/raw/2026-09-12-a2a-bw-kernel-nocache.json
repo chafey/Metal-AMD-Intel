@@ -1,0 +1,330 @@
+{
+  "bytesPerStream" : 536870912,
+  "devices" : [
+    {
+      "index" : 1,
+      "module" : "A",
+      "name" : "AMD Radeon PRO W6800X Duo"
+    },
+    {
+      "index" : 2,
+      "module" : "A",
+      "name" : "AMD Radeon PRO W6800X Duo"
+    },
+    {
+      "index" : 3,
+      "module" : "B",
+      "name" : "AMD Radeon PRO W6800X Duo"
+    },
+    {
+      "index" : 4,
+      "module" : "B",
+      "name" : "AMD Radeon PRO W6800X Duo"
+    }
+  ],
+  "engine" : "kernel",
+  "iterations" : 1,
+  "maxConcurrentDefault" : 0,
+  "peerGroupIDHex" : "0x4cf5577a51a24576",
+  "phases" : [
+    {
+      "aggregateGbps" : 107.5,
+      "concurrent" : false,
+      "maxConcurrent" : 0,
+      "medianWallMs" : 59.899999999999999,
+      "perStream" : [
+        {
+          "consumerIdx" : 1,
+          "consumerModule" : "A",
+          "crossModule" : false,
+          "gbps" : 110.2,
+          "producerIdx" : 2,
+          "producerModule" : "A"
+        },
+        {
+          "consumerIdx" : 1,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 108.3,
+          "producerIdx" : 3,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 1,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 108.7,
+          "producerIdx" : 4,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 2,
+          "consumerModule" : "A",
+          "crossModule" : false,
+          "gbps" : 86.099999999999994,
+          "producerIdx" : 1,
+          "producerModule" : "A"
+        },
+        {
+          "consumerIdx" : 2,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 111.7,
+          "producerIdx" : 3,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 2,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 112.7,
+          "producerIdx" : 4,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 3,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 110.7,
+          "producerIdx" : 1,
+          "producerModule" : "A"
+        },
+        {
+          "consumerIdx" : 3,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 109.7,
+          "producerIdx" : 2,
+          "producerModule" : "A"
+        },
+        {
+          "consumerIdx" : 3,
+          "consumerModule" : "B",
+          "crossModule" : false,
+          "gbps" : 113.3,
+          "producerIdx" : 4,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 4,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 110,
+          "producerIdx" : 1,
+          "producerModule" : "A"
+        },
+        {
+          "consumerIdx" : 4,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 112.8,
+          "producerIdx" : 2,
+          "producerModule" : "A"
+        },
+        {
+          "consumerIdx" : 4,
+          "consumerModule" : "B",
+          "crossModule" : false,
+          "gbps" : 111.7,
+          "producerIdx" : 3,
+          "producerModule" : "B"
+        }
+      ],
+      "phase" : "A_isolated",
+      "streams" : 12
+    },
+    {
+      "aggregateGbps" : 286.69999999999999,
+      "concurrent" : true,
+      "maxConcurrent" : 0,
+      "medianWallMs" : 7.5,
+      "perStream" : [
+        {
+          "consumerIdx" : 1,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 72.099999999999994,
+          "producerIdx" : 3,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 3,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 84.799999999999997,
+          "producerIdx" : 1,
+          "producerModule" : "A"
+        },
+        {
+          "consumerIdx" : 2,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 72.099999999999994,
+          "producerIdx" : 4,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 4,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 84.700000000000003,
+          "producerIdx" : 2,
+          "producerModule" : "A"
+        }
+      ],
+      "phase" : "B3_crosscard_4streams",
+      "streams" : 4
+    },
+    {
+      "aggregateGbps" : 161.09999999999999,
+      "concurrent" : true,
+      "maxConcurrent" : 0,
+      "medianWallMs" : 26.699999999999999,
+      "perStream" : [
+        {
+          "consumerIdx" : 1,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 81.799999999999997,
+          "producerIdx" : 3,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 1,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 26.699999999999999,
+          "producerIdx" : 4,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 2,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 25.399999999999999,
+          "producerIdx" : 3,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 2,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 46.700000000000003,
+          "producerIdx" : 4,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 3,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 41.100000000000001,
+          "producerIdx" : 1,
+          "producerModule" : "A"
+        },
+        {
+          "consumerIdx" : 3,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 21.100000000000001,
+          "producerIdx" : 2,
+          "producerModule" : "A"
+        },
+        {
+          "consumerIdx" : 4,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 28.600000000000001,
+          "producerIdx" : 1,
+          "producerModule" : "A"
+        },
+        {
+          "consumerIdx" : 4,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 20.300000000000001,
+          "producerIdx" : 2,
+          "producerModule" : "A"
+        }
+      ],
+      "phase" : "C_cross_card",
+      "streams" : 8
+    },
+    {
+      "aggregateGbps" : 218.80000000000001,
+      "concurrent" : true,
+      "maxConcurrent" : 4,
+      "medianWallMs" : 19.600000000000001,
+      "perStream" : [
+        {
+          "consumerIdx" : 1,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 83.099999999999994,
+          "producerIdx" : 3,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 3,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 72.099999999999994,
+          "producerIdx" : 1,
+          "producerModule" : "A"
+        },
+        {
+          "consumerIdx" : 2,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 64,
+          "producerIdx" : 4,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 4,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 83,
+          "producerIdx" : 2,
+          "producerModule" : "A"
+        },
+        {
+          "consumerIdx" : 1,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 41.799999999999997,
+          "producerIdx" : 4,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 4,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 44.399999999999999,
+          "producerIdx" : 1,
+          "producerModule" : "A"
+        },
+        {
+          "consumerIdx" : 2,
+          "consumerModule" : "A",
+          "crossModule" : true,
+          "gbps" : 49,
+          "producerIdx" : 3,
+          "producerModule" : "B"
+        },
+        {
+          "consumerIdx" : 3,
+          "consumerModule" : "B",
+          "crossModule" : true,
+          "gbps" : 45.100000000000001,
+          "producerIdx" : 2,
+          "producerModule" : "A"
+        }
+      ],
+      "phase" : "E8_cross_8streams_cap4",
+      "streams" : 8
+    }
+  ],
+  "roundsPerStream" : 1,
+  "tool" : "a2a-bw",
+  "version" : 2
+}

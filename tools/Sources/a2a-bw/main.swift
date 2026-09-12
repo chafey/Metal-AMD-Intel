@@ -30,9 +30,12 @@ var opts = (
     moduleB: [Int](),
     bytes: 64 * 1024 * 1024,
     rounds: 8,
-    iters: 3
+    iters: 3,
+    engine: "blit",
+    maxConcurrent: 0
 )
 var wantJSON = false
+var phaseFilter: [String] = []   // empty = all; else keep phases whose name contains any entry
 func die(_ msg: String) -> Never {
     FileHandle.standardError.write(Data("a2a-bw: \(msg)\n".utf8)); exit(2)
 }
@@ -55,6 +58,13 @@ while ai < args.count {
         opts.rounds = Int(args[ai]) ?? opts.rounds
     case "--iters":    ai += 1; guard ai < args.count else { break }
         opts.iters = Int(args[ai]) ?? opts.iters
+    case "--engine":   ai += 1; guard ai < args.count else { break }
+        guard args[ai] == "blit" || args[ai] == "kernel" else { die("--engine is blit|kernel") }
+        opts.engine = args[ai]
+    case "--max-concurrent": ai += 1; guard ai < args.count else { break }
+        opts.maxConcurrent = Int(args[ai]) ?? 0
+    case "--phases":   ai += 1; guard ai < args.count else { break }
+        phaseFilter = args[ai].split(separator: ",").map(String.init)
     case "--json":     wantJSON = true
     case "-h", "--help":
         print("""
@@ -72,6 +82,13 @@ while ai < args.count {
           --rounds N             copies per stream per CB (default 8)
           --iters N              timed repeats per phase, median kept
                                  (default 3, plus one warmup)
+          --engine blit|kernel   pull with blit copies (default) or with a
+                                 compute kernel reading the remote view
+                                 (different driver submission path)
+          --max-concurrent N     cap simultaneously-in-flight streams with
+                                 a semaphore (default 0 = uncapped)
+          --phases A,B3,E8       only run phases whose name contains one of
+                                 these comma-separated substrings
           --json                 machine-readable output
         """)
         exit(0)
@@ -144,20 +161,59 @@ for c in 0..<n {
 struct Spec { let c: Int, p: Int }
 var phaseReports: [[String: Any]] = []
 
+// Kernel engine: one trivially compiling pull kernel per consumer device
+// (kernel-driven remote reads are a different driver submission path than
+// the blit engine; used to tell fabric limits from blit-path scheduling).
+let pullSource = """
+kernel void pull(const device uchar4 *src [[buffer(0)]],
+                 device uchar4 *dst [[buffer(1)]],
+                 uint tid [[thread_position_in_grid]]) {
+    dst[tid] = src[tid];
+}
+"""
+var pullPipes: [Int: MTLComputePipelineState] = [:]
+if opts.engine == "kernel" {
+    guard opts.bytes % (16 * 256) == 0 else { die("--engine kernel needs --bytes multiple of 4096") }
+    for c in 0..<n {
+        guard let lib = try? dev[c].makeLibrary(source: pullSource, options: nil),
+              let fn = lib.makeFunction(name: "pull"),
+              let pso = try? dev[c].makeComputePipelineState(function: fn)
+        else { die("kernel engine: pipeline compile failed on device \(opts.devices[c])") }
+        pullPipes[c] = pso
+    }
+}
+let pullThreads = opts.bytes / 16
+
 /// One timed iteration: run all specs (concurrently or one at a time).
 /// Returns (wall ms, per-stream GB/s in spec order).
-func runStreams(_ specs: [Spec], concurrent: Bool) -> (Double, [Double]) {
+func runStreams(_ specs: [Spec], concurrent: Bool, maxConcurrent: Int = 0) -> (Double, [Double]) {
     var gbps = [Double](repeating: 0, count: specs.count)
     let lock = NSLock()
+    let sem = maxConcurrent > 0 ? DispatchSemaphore(value: maxConcurrent) : nil
     let startAll = DispatchTime.now().uptimeNanoseconds
     func one(_ i: Int) {
+        sem?.wait()
+        defer { sem?.signal() }
         let s = specs[i]
         let cb = q[s.c].makeCommandBuffer()!
-        let e = cb.makeBlitCommandEncoder()!
-        for _ in 0..<rounds {
-            e.copy(from: views[s.c][s.p], sourceOffset: 0, to: dst[s.c][s.p], destinationOffset: 0, size: bytes)
+        if opts.engine == "kernel", let pso = pullPipes[s.c] {
+            guard let e = cb.makeComputeCommandEncoder() else {
+                lock.lock(); gbps[i] = 0; lock.unlock(); return
+            }
+            e.setComputePipelineState(pso)
+            e.setBuffer(views[s.c][s.p], offset: 0, index: 0)
+            e.setBuffer(dst[s.c][s.p], offset: 0, index: 1)
+            let grid = MTLSize(width: pullThreads, height: 1, depth: 1)
+            let tg = MTLSize(width: 256, height: 1, depth: 1)
+            for _ in 0..<rounds { e.dispatchThreads(grid, threadsPerThreadgroup: tg) }
+            e.endEncoding()
+        } else {
+            let e = cb.makeBlitCommandEncoder()!
+            for _ in 0..<rounds {
+                e.copy(from: views[s.c][s.p], sourceOffset: 0, to: dst[s.c][s.p], destinationOffset: 0, size: bytes)
+            }
+            e.endEncoding()
         }
-        e.endEncoding()
         let t0 = DispatchTime.now().uptimeNanoseconds
         cb.commit(); cb.waitUntilCompleted()
         let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1e6
@@ -172,13 +228,15 @@ func runStreams(_ specs: [Spec], concurrent: Bool) -> (Double, [Double]) {
     return (Double(DispatchTime.now().uptimeNanoseconds - startAll) / 1e6, gbps)
 }
 
-func phase(_ name: String, _ specs: [Spec], concurrent: Bool) {
+func phase(_ name: String, _ specs: [Spec], concurrent: Bool, maxConcurrent: Int = 0) {
     guard !specs.isEmpty else { return }
-    _ = runStreams(specs, concurrent: concurrent)  // warmup
+    guard phaseFilter.isEmpty || phaseFilter.contains(where: { name.contains($0) }) else { return }
+    let cap = maxConcurrent > 0 ? maxConcurrent : opts.maxConcurrent
+    _ = runStreams(specs, concurrent: concurrent, maxConcurrent: cap)  // warmup
     var walls: [Double] = []
     var perStream: [[Double]] = (0..<specs.count).map { _ in [] }
     for _ in 0..<opts.iters {
-        let (wall, gb) = runStreams(specs, concurrent: concurrent)
+        let (wall, gb) = runStreams(specs, concurrent: concurrent, maxConcurrent: cap)
         walls.append(wall)
         for i in 0..<specs.count { perStream[i].append(gb[i]) }
     }
@@ -203,6 +261,7 @@ func phase(_ name: String, _ specs: [Spec], concurrent: Bool) {
     let aggregate = totalBytes / (medianWall / 1e3) / 1e9
     phaseReports.append([
         "phase": name, "streams": specs.count, "concurrent": concurrent,
+        "maxConcurrent": cap,
         "medianWallMs": (medianWall * 10).rounded() / 10,
         "aggregateGbps": (aggregate * 10).rounded() / 10,
         "perStream": streamRows,
@@ -235,6 +294,22 @@ if opts.moduleA.count >= 2 && opts.moduleB.count >= 2 {
                    Spec(c: a[1], p: b[1]), Spec(c: b[1], p: a[1])]
 }
 
+// Fixed cross-card ordering interleaving both directions and both module
+// pairs, so every N-prefix is balanced: per producer fan-in <= 2 for N <= 7
+// (<= 3 at N = 8) — under the 4-consumer driver hang limit. First 8 = all
+// cross streams (= phase C).
+var crossOrdered: [Spec] = []
+if opts.moduleA.count == 2 && opts.moduleB.count == 2 {
+    let a = opts.moduleA.map { opts.devices.firstIndex(of: $0)! }
+    let b = opts.moduleB.map { opts.devices.firstIndex(of: $0)! }
+    crossOrdered = [
+        Spec(c: a[0], p: b[0]), Spec(c: b[0], p: a[0]),
+        Spec(c: a[1], p: b[1]), Spec(c: b[1], p: a[1]),
+        Spec(c: a[0], p: b[1]), Spec(c: b[1], p: a[0]),
+        Spec(c: a[1], p: b[0]), Spec(c: b[0], p: a[1]),
+    ]
+}
+
 progress("phase A: isolated (one stream at a time)")
 phase("A_isolated", allSpecs, concurrent: false)
 progress("phase B: same-module pairs simultaneous (control)")
@@ -245,12 +320,22 @@ progress("phase B3: TWO cross-card pairs, both directions (4 streams)")
 phase("B3_crosscard_4streams", cross2Pairs, concurrent: true)
 progress("phase C: cross-card streams simultaneous")
 phase("C_cross_card", crossSpecs, concurrent: true)
+// Ceiling discrimination (engine-agnostic where specs allow):
+if !crossOrdered.isEmpty {
+    for k in [3, 5, 6] {
+        progress("phase E: cross-card sweep, \(k) streams")
+        phase("E_cross_\(k)streams", Array(crossOrdered.prefix(k)), concurrent: true)
+    }
+    progress("phase E8cap4: 8 cross-card streams, semaphore cap 4")
+    phase("E8_cross_8streams_cap4", Array(crossOrdered.prefix(8)), concurrent: true, maxConcurrent: 4)
+}
 progress("phase D: full all-to-all simultaneous")
 phase("D_all_to_all", allSpecs, concurrent: true)
 
 if wantJSON {
     let report: [String: Any] = [
-        "tool": "a2a-bw", "version": 1,
+        "tool": "a2a-bw", "version": 2,
+        "engine": opts.engine, "maxConcurrentDefault": opts.maxConcurrent,
         "devices": opts.devices.map { ["index": $0, "name": allDevices[$0].name,
                                        "module": moduleOf($0)] as [String: Any] },
         "peerGroupIDHex": String(format: "0x%016llx", peerGroup),

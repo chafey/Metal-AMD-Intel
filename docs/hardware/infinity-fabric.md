@@ -46,23 +46,27 @@ Per [Apple's Mac Pro (2019) technical specifications](https://support.apple.com/
   up to 84 GB/s in each direction"; for the **external** (bridge) connection
   Apple says only that it "enables two W6800X Duo modules to connect four
   W6800X GPUs" — **no bandwidth figure is stated for the bridge link**.
-  Measured behaviour of the loaded bridge (hive-global ~90 GB/s pool,
-  shared by all flows, on-module and cross-card alike) is in the
-  [2026-09-12 bridge-share report](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md).
+  Measured behaviour: with **kernel-driven** pulls the bridge reaches
+  Apple's rating (~90 GB/s per direction on one full-duplex pair, 330
+  GB/s aggregate across four independent links); with **blit** copies the
+  whole hive plateaus at ~90 GB/s regardless of schedule. See the
+  [kernel-vs-blit ceiling report](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md).
 - **Vega II / Vega II Duo:** 84 GB/s stated *without* the "in each direction"
   qualifier (direction convention unstated).
 
 Reading these numbers: 84 GB/s per direction is a rating for **one
 physical link** — a link capacity, not a per-GPU-pair reservation. What
-the measurements actually show on a bridged 2× W6800X Duo hive is a
-**hive-global ~90 GB/s pool** (both directions combined) shared by every
-concurrent bulk flow, with no measurable distinction between on-module
-and cross-card paths — well below what the link ratings would allow.
-Whether on-module traffic physically traverses the bridge adapter or an
-onboard link is **not exposed by the IORegistry and cannot be
-distinguished by any measurement in this repo** (both paths perform
-identically); capacity planning should therefore use the single shared
-pool regardless of path.
+the measurements show on a bridged 2× W6800X Duo hive (2026-09-12,
+[kernel-vs-blit ceiling report](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md)):
+under **kernel-driven** load the four links behave independently and the
+fabric lives up to the rating (~90 GB/s per direction per full-duplex
+pair; 330 GB/s with four disjoint flows); under **blit** load the driver
+never gets past ~90 GB/s hive-wide. Whether on-module traffic physically
+traverses the bridge adapter or an onboard link is still **not exposed by
+the IORegistry and not distinguishable by any measurement in this repo**
+(both paths perform identically); capacity planning should budget each
+GPU's link independently — but see the link-sharing caveat in the
+ceiling report before running concurrent flows.
 
 ### Measured
 
@@ -103,28 +107,33 @@ Findings from the 2026-09-11 reports, pending independent confirmation:
   for the staging route (for the p2p route, the peer group == xGMI hive
   correspondence is directly evidenced by `peerGroupID` values).
 
-| W6800X Duo ×2 | cross-card bulk, 4 streams (2 disjoint pairs, both directions) | 64 MiB × 8/stream | aggregate 90.7 GB/s; per-stream 22.7–24.4 — identical to the 4-stream same-module control | — | [2026-09-12 bridge-share follow-up](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) |
-| W6800X Duo ×2 | cross-card bulk, 8 streams simultaneously | 64 MiB × 8/stream | aggregate 50.7–55.2 GB/s; per-stream 6.4–18.8 (unfair, run-to-run unstable) | — | [2026-09-12 bridge-share](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) |
-| W6800X Duo ×2 | same-module pairs, both simultaneously (4 streams) | 64 MiB × 8/stream | aggregate 90.3–96.1 GB/s, per-stream 22.6–24.2 — **no better than cross-card at equal stream count** | — | [2026-09-12 bridge-share](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) |
+Concurrent bulk flows (`a2a-bw`, 64 MiB streams unless noted; medians):
 
-**Hive capacity is one shared ~90 GB/s pool (answered 2026-09-12,
-`a2a-bw`, revised after the concurrency-controlled follow-up).** Even
-four simultaneous cross-card bulk streams only reach ~90 GB/s aggregate
-(4× an isolated stream's ~29 would be ~116; 8 streams would be ~232) —
-so the bridged hive does not deliver per-pair capacity, and nothing
-resembles 84 GB/s **per direction** under load. Aggregate scales linearly
-to 4 concurrent streams (~24 GB/s each, fair split, ~47 GB/s per
-direction) and then *collapses*: 8 streams total only 51–55 GB/s with
-unfair, unstable shares — a driver-side scheduling penalty with the same
-signature as the small-op contention in
-[`tp-sim`/`pull-contention`](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md),
-not a link limit (the same cross-card path carries 90.7 GB/s at 4
-streams). Earlier claims that the on-module Infinity Fabric Link jumper
-provides independent, additive capacity were a stream-count artifact:
-concurrency-matched, cross-card streams perform identically to same-module
-streams. Capacity planning: budget every flow — on-module or cross-card —
-against the same ~90 GB/s pool and keep concurrent bulk flows ≤4; see
-[the bridge-share report](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md).
+| Engine | Configuration | Bandwidth | Report |
+|---|---|---|---|
+| blit | 4 cross-card streams (2 disjoint pairs) | aggregate 90.5–90.7; per-stream 22.7–24.4 — identical to the same-module 4-stream control | [bridge-share](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) |
+| blit | 8 cross-card streams | aggregate 50.7–55.2; per-stream 6.4–18.8 (unfair, unstable) | [bridge-share](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) |
+| blit | same-module pairs, both simultaneously (4 streams) | aggregate 90.3–96.1 — **no better than cross-card at equal structure** | [bridge-share](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) |
+| kernel | 1 stream isolated (2 GiB) | 113.4 GB/s — 4× the blit single-stream rate | [ceiling](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md) |
+| kernel | 1 full-duplex pair (2 GiB) | ~90 per direction (≈180 combined) — matches Apple's rating | [ceiling](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md) |
+| kernel | 4 disjoint streams, all 4 links (1 GiB) | aggregate 330.2; per-stream 82.9–90.1 — links are independent | [ceiling](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md) |
+| kernel | 8 cross-card streams (2 per link, 1 GiB) | aggregate 184.7 — flows sharing a link collapse it to ~46 GB/s | [ceiling](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md) |
+| kernel | same 8, semaphore cap 4 in flight | aggregate 228.2 (cap 2: 169.2; sequential: 107.1) | [ceiling](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md) |
+
+**Final model (2026-09-12): the ~90 GB/s ceiling is the copy engine, not
+the fabric.** Kernel-driven remote reads reach Apple's rated link speed
+(~84–90 GB/s per direction) and the four Infinity Fabric links scale
+independently (330 GB/s aggregate). The blit/copy-engine path plateaus at
+~90 GB/s hive-wide under any schedule. Two flow-level caveats apply to
+both engines: two concurrent flows sharing one link collapse that link to
+~46 GB/s combined (serialise per-link egress at the app level), and
+earlier claims that the on-module Infinity Fabric Link jumper provides
+independent, additive capacity were a stream-count artifact — at equal
+structure, on-module and cross-card flows perform identically. Note the
+kernel bandwidth depends on the read kernel's parallelism:
+`if-bench`'s simpler kernel-read mode measured only ~36 GB/s single-stream
+where `a2a-bw`'s `uchar4` grid-stride reaches 113. See
+[the ceiling report](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md).
 
 Directions worth distinguishing — status on the 2× W6800X Duo + bridge
 reference configuration (numbers and method in the linked reports):

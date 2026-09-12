@@ -153,20 +153,24 @@ symptom, affected configuration, workaround, and OS/driver version observed.
 - **Status:** observed; file-worthy (looks like a driver deadlock in
   remote-page-table handling), not yet filed
 
-### Concurrent flows are arbitrated unfairly (no partition stalls)
+### Concurrent flows are arbitrated unfairly (blit path; no partition stalls)
 - **Affects:** 2× W6800X Duo xGMI hive of 4, macOS 26.6.2,
-  AMDRadeonX6000 7.0.1
+  AMDRadeonX6000 7.0.1 — blit (`MTLBlitCommandEncoder`) copies
 - **Symptom:** this is *not* a stall — both partitions keep making progress,
-  but above 4 simultaneous bulk flows the hive's aggregate throughput
-  *falls* (~90 GB/s at 4 streams → ~51–55 GB/s at 8) and per-stream shares
-  become unfair (up to 3× spread) and swap winners run-to-run. Scheduling
-  decisions are made driver-side, not by physical link topology
+  but the blit path is capped at ~90 GB/s hive-wide, and above 4
+  simultaneous bulk flows aggregate throughput *falls* (~90 → ~51–55 GB/s
+  at 8) with per-stream shares unfair (up to 3× spread) and swapping
+  winners run-to-run. Scheduling is driver-side, not link-topology-driven.
+  Kernel-driven pulls dodge the plateau entirely (~330 GB/s aggregate —
+  see [ceiling report](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md)),
+  but both engines share one rule: **two concurrent flows on the same
+  link collapse it to ~46 GB/s combined** — serialise per-link egress
+  in the application.
 - **Repro:** `tools/.build/release/a2a-bw` (phases B3 vs C are the
-  concurrency-matched comparison)
-- **Workaround:** keep concurrent bulk flows at ≤4 and budget the hive as
-  one ~90 GB/s pool — see
-  [bridge-share report](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md)
-- **Status:** measured and reproduced (three runs); root cause (driver
-  work scheduler vs remote-page-table arbitration) not isolated
+  concurrency-matched comparison; `--engine kernel` for the fabric path)
+- **Workaround:** kernel copies for bulk IF traffic; keep ≤1 in-flight
+  flow per link (global cap of 4 already beats full concurrency)
+- **Status:** measured and reproduced; root cause (driver work scheduler
+  vs remote-page-table arbitration) not isolated
 
 > Each entry must be reproducible with a checked-in tool or example.

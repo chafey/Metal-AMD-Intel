@@ -2,7 +2,11 @@
 
 - **Date:** 2026-09-12 (revised same day after the concurrency-controlled
   follow-up; the original findings 1, 3 and 4 were misinterpreted — see
-  "Follow-up" below)
+  "Follow-up" below. **Second revision:** all ceiling numbers here were
+  measured with **blit** copies and are now known to be copy-engine
+  limits, not fabric limits — see
+  [kernel-vs-blit ceiling report](2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md)
+  for the actual fabric behaviour under kernel-driven load.)
 - **Author:** repo maintainer
 - **Tool:** `a2a-bw` (Swift, release build, this repo)
 - **Exact commands:**
@@ -95,14 +99,14 @@ two cross-card streams: 2 × 24.2 = 48.2 — perfect linear scaling. The
 capacity: the same path carries 90.7 GB/s at half the stream count.
 The B-vs-C gap tracks stream *count*, not wiring.
 
-## Findings (revised)
+## Findings (revised; all blit-path only — see second-revision note above)
 
-1. **Capacity is hive-global, not per-pair.** Eight simultaneous cross-card
-   streams share ~51–55 GB/s aggregate and even four streams only reach
-   ~90 GB/s, far short of the 4×29–8×29 GB/s per-pair scaling that
-   non-shared capacity would produce. The whole 4-GPU hive behaves like a
-   single ~90 GB/s (both directions combined) pool under any load we could
-   apply — nowhere near 84 GB/s *per direction*.
+1. **The blit path exposes no per-pair capacity.** Eight simultaneous
+   cross-card streams share ~51–55 GB/s aggregate and even four streams
+   only reach ~90 GB/s, far short of the 4×29–8×29 GB/s per-pair scaling
+   that non-shared capacity would produce. (Later work showed the fabric
+   itself does deliver per-link capacity under kernel pulls; this
+   finding describes the copy-engine path.)
 2. **There is no measurable performance distinction between on-module and
    cross-card paths.** Isolated: 27.1–29.6 GB/s uniformly across all 12
    ordered pairs. At equal concurrency: 4 on-module streams 90.5 GB/s vs
@@ -132,12 +136,16 @@ The B-vs-C gap tracks stream *count*, not wiring.
    per-stream winners swap run-to-run). Below that, at ≤4 streams, the
    split is fair (~24 each, both directions ~equal).
 
-## Capacity-planning rules for a 2× W6800X Duo + bridge
+## Capacity-planning rules for a 2× W6800X Duo + bridge (blit path)
 
-- Budget the hive as **one ~90 GB/s pool (all flows, both directions)**,
-  not 84 GB/s per direction per pair. Up to **4 concurrent bulk flows**,
-  expect ~24 GB/s each, fairly split; this holds for on-module *and*
-  cross-card flows alike.
+> Superseded for kernel-driven copies by the
+> [ceiling report](2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md);
+> these rules hold only if you stay on `MTLBlitCommandEncoder`.
+
+- Budget the blit path as **one ~90 GB/s pool (all flows, both
+  directions)**, not 84 GB/s per direction per pair. Up to **4 concurrent
+  bulk flows**, expect ~24 GB/s each, fairly split; this holds for
+  on-module *and* cross-card flows alike.
 - **Keep concurrent bulk flows at ≤4.** At 8–12 simultaneous flows total
   throughput *drops* to ~51–69 GB/s with unstable, unfair per-stream
   shares.
@@ -158,12 +166,14 @@ The B-vs-C gap tracks stream *count*, not wiring.
 
 ## Conclusions
 
-The original question ("shared or per-pair?") is answered: **shared** —
-the hive behaves as one ~90 GB/s fabric pool. The revised follow-up also
-answers the question the original run raised but misread: the on-module
-Infinity Fabric Link jumper shows **no** capacity separate from the
-bridge under any concurrency we tested, so all 4-GPU traffic should be
-budgeted against the same pool regardless of path. Doc links corrected
-in [infinity-fabric.md](../hardware/infinity-fabric.md) and
-[mpx-cards.md](../hardware/mpx-cards.md).
+The original question ("shared or per-pair?") is answered **for the blit
+path: shared** — the copy-engine route behaves as one ~90 GB/s pool.
+A later second follow-up (see the date note above) showed the fabric
+itself is **not** the limit: kernel-driven pulls reach ~90 GB/s *per
+direction per link* and ~330 GB/s hive-wide, so "shared" here describes
+the driver/copy-engine, not the Infinity Fabric. The uniform-fabric
+result stands either way: the on-module Infinity Fabric Link jumper
+shows no capacity separate from the bridge at equal structure.
+Doc links corrected in [infinity-fabric.md](../hardware/infinity-fabric.md)
+and [mpx-cards.md](../hardware/mpx-cards.md).
 Tool: [a2a-bw README](../../tools/a2a-bw/README.md).

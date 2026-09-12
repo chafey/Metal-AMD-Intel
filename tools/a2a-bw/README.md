@@ -6,7 +6,7 @@ does each GPU pair get its own?**
 
 Method: bulk destination-side pulls (default 64 MiB × 8 rounds ≈ 512 MiB
 per stream — deep in the bandwidth regime) through peer-group remote views,
-in four phases:
+as blit copies or kernel reads (`--engine kernel`), in phases:
 
 | phase | streams | what it shows |
 |---|---|---|
@@ -15,6 +15,8 @@ in four phases:
 | B2 cross-card 2 | one cross-card pair, both directions | linear-scaling check at low concurrency |
 | B3 cross-card 4 | two disjoint cross-card pairs | concurrency-matched vs B: wiring or stream count? |
 | C cross-card | all cross-module pairs simultaneously | 8-stream hive stress |
+| E_cross_3/5/6 | N-prefix of a balanced cross-card order | stream-count sweep |
+| E8_cross_..._cap4 | 8 cross-card streams, 4 in flight | app-side throttling vs full concurrency |
 | D all-to-all | every ordered pair simultaneously | max hive stress |
 
 Safety: never exceeds 3 consumers per source buffer (4+ hangs the
@@ -23,15 +25,21 @@ committed immediately.
 
 ```
 usage: a2a-bw [--devices 1,2,3,4] [--modules 1,2|3,4]
-              [--bytes N] [--rounds N] [--iters N] [--json]
+              [--bytes N] [--rounds N] [--iters N]
+              [--engine blit|kernel] [--max-concurrent N] [--phases A,B3] [--json]
 ```
 
-Result on 2× W6800X Duo + bridge: hive capacity is **one shared ~90 GB/s
-pool**, not per-pair bandwidth (Apple's 84 GB/s per direction is nowhere
-reached under load). Aggregate scales linearly to 4 concurrent streams
-(~24 GB/s each — same whether on-module or cross-card: B 90.5 vs B3
-90.7) then collapses to ~51–55 GB/s at 8 streams with unfair,
-unstable shares (driver scheduling, not link limits). The original
-“independent/additive on-module jumper capacity” reading was a
-stream-count artifact and has been retracted. Full analysis:
-[bridge-share report](../../docs/benchmarks/2026-09-12-w6800x-duo-bridge-share.md).
+`--phases` keeps only phases whose name contains one of the
+comma-separated substrings; `--max-concurrent N` caps in-flight streams
+with a semaphore in every concurrent phase.
+
+Result on 2× W6800X Duo + bridge: the answer depends on the copy engine.
+**Blit path:** one shared ~90 GB/s pool, linear to 4 streams then
+collapsing at 8 — the ceiling is the copy engine, not the fabric.
+**Kernel path:** ~113 GB/s on a single stream, ~90 GB/s *per direction*
+on a full-duplex pair (Apple's 84 GB/s rating, honored), 330 GB/s
+aggregate across four independent links; two concurrent flows sharing one
+link collapse it to ~46 GB/s, so serialise per-link egress (a global
+in-flight cap of 4 already beats full concurrency: 228 vs 185). Full
+analysis: [ceiling report](../../docs/benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md)
+and the blit-path [bridge-share report](../../docs/benchmarks/2026-09-12-w6800x-duo-bridge-share.md).
