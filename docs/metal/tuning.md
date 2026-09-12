@@ -66,7 +66,12 @@ working set may live on a remote GPU partition.
    shows the very same 2-queue overlap of *local* blits with compute
    works at full speed. The decode all-reduce tax cannot be hidden
    under compute on this driver; only the schedule (rule 4) and op
-   count matter.
+   count matter. A host-RAM relay all-reduce (GPU→own shared buffer →
+   CPU sum → clflush → event → consumer GPU) **does** dodge the
+   remote-op charge and wins ~20% at batch-1 32 KiB, but two ~90 µs
+   command-buffer round-trips plus O(ranks×bytes) CPU cache
+   maintenance cap it well short of batch amortization — see the
+   host-relay follow-up.
    [overlap follow-up](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md#follow-up-2026-09-12-computecomm-overlap-via-a-second-command-queue--negative-result).
 
 ## Topics

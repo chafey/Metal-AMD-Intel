@@ -487,3 +487,82 @@ Caveats:
 - Repro: `tp-sim --hidden $((8192*B)) --tokens 1 --sync chain
   --pull fused` per B; `--allreduce recdbl --sync both` for the
   B≥32 rows.
+
+## Follow-up (2026-09-12): host-RAM relay all-reduce — a real but small batch-1 win
+
+The last idea that attacks the ~200 µs remote-op *charge* itself rather
+than routing around it: keep GPUs off each other's memory entirely and
+core out the all-reduce through host RAM — each GPU writes its partial
+to **its own** `storageModeShared` buffer (host RAM, PCIe writes),
+signals an `MTLSharedEvent`; the CPU (which is the host — reads are
+free) sums the 4 partials, writes each rank's staging buffer back,
+`clflush`es, signals a CPU-set event; each consumer GPU (command
+buffer pre-committed on a **second queue** `encodeWaitForEvent`-ing
+that event) copies host→VRAM and signals done. `probe-latency` measures
+every constituent; `--relay4` runs the full 4-rank loop with a
+correctness gate (Σ(r+1) expected, read back per rank).
+
+### Coherence ground truth (this is the interesting part)
+
+The Intel-host ↔ PCIe-GPU staging path is **not cache-coherent in the
+way Apple Silicon's is**, and three distinct traps showed up:
+
+1. **GPU→CPU payload/flag ordering.** A kernel writing payload then a
+   flag (relaxed) into host RAM: the CPU saw the flag but read the
+   **payload stale in 60/60 iterations** — GPU posted writes are not
+   release-ordered against the flag. `encodeSignalEvent` on the command
+   buffer (signal implies full memory flush) fixes it: 0/100 stale.
+2. **GPU→CPU direction needs no CPU-side invalidation.** With event
+   signaling, skipping `clflush`/`clinv` on the CPU side is safe on
+   this Xeon (0/100 stale, PASS): platform IOMMU snoops invalidate CPU
+   lines on GPU DMA. Saves ~90 µs/reduce.
+3. **CPU→GPU is the broken direction.** A pre-committed GPU spin-kernel
+   took **~9.6 ms** to observe a flag the CPU had just written — it
+   waited for natural eviction of the dirty CPU cache line. Fix: CPU
+   `clflush_range` over staging lines after writing (32 KiB ≈ 41 µs);
+   GPU then sees it in normal time (P3 80 µs signal→done).
+
+Two more driver gotchas found probing the broadcast optimization (see
+[gotchas](../metal/gotchas.md)): a shared buffer **allocated on device
+A and encoded into a kernel on device B** passes validation silently
+and delivers garbage (3/4 ranks corrupt); and
+`newRemoteBufferViewForDevice:` **returns nil for shared buffers**
+(remote views are private/VRAM-only), so neither cross-device sharing
+nor a remote-view escape hatch exists for host staging. Per-rank
+staging buffers are mandatory.
+
+### Results (32 KiB partials = batch-1 70B TP4 decode; µs/reduce)
+
+| variant | µs/reduce | verify | vs naive+chain fused (619, same session) |
+|---|---|---|---|
+| relay4, per-rank staging + clinv | 599 | PASS | 1.03× |
+| **relay4, per-rank staging, noclinv** | **511** | PASS | **1.21×** |
+| relay4, crossbuf (illegal shared-buffer reuse) | 368 | **FAIL 3/4** | (silent corruption) |
+
+Size sweep (noclinv) vs naive fused chain: 64 KiB — relay 753 vs 615
+(loses); 128 KiB — relay 1212 vs ~640 (2× loss). The CPU stage is
+O(ranks × bytes) cache-maintenance (read 4 partials cold, write 4,
+clflush 4 ≈ 210 µs at 32 KiB, 432 at 64 KiB), so the win exists only
+at batch-1 decode sizes and dies by B=2.
+
+Single-hop costs for reference (32 KiB, cross-card): trivial CB floor
+96 µs; GPU→host event→CPU-saw 66–86 µs (copy busy 8 µs); CPU-signal→
+GPU-copy-done 80 µs; full one-hop relay e2e **56–97 µs** (verify PASS,
+cross-card and same-module identical — it's all host RAM).
+
+### Verdict
+
+The remote-op charge **can** be dodged — a host-RAM relay all-reduce is
+mechanically feasible, verified correct, and beats every fabric
+schedule at batch 1 by ~20%. But it is not the hoped-for 6×: two
+~90 µs command-buffer round-trips per hop and O(ranks × bytes) CPU
+cache maintenance floor it near ~500 µs, and it pins a CPU core on the
+all-reduce critical path. **Batch amortization (20–24× at B=32)
+remains the dominant decode lever by an order of magnitude**; relay is
+at best a niche add-on for latency-critical B=1 serving on this
+driver. All measurements in
+`raw/2026-09-12-probe-latency-relay.txt`; repro:
+`swift build --package-path tools -c release --disable-sandbox --product probe-latency`
+then `probe-latency --relay4 --device 1 --remote 4 --iters 100
+--noclinv` (also `--device 1 --remote 3` single-hop probes,
+`--size-kib`, `--crossbuf`, `--noclinv`).

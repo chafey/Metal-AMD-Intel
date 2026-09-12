@@ -41,5 +41,14 @@ let package = Package(
             name: "remote-view-check",
             path: "Sources/remote-view-check"
         ),
+        .executableTarget(
+            name: "probe-latency",
+            dependencies: ["CFast"],
+            path: "Sources/probe-latency"
+        ),
+        .target(
+            name: "CFast",
+            path: "Sources/CFast"
+        ),
     ]
 )

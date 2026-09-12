@@ -15,6 +15,8 @@ driven from the root `Makefile`.
 | [if-bench](if-bench/) | Swift | Local / cross-device (IOSurface staging **and** peer-group P2P remote views) / host copy bandwidth & latency; concurrent-load repro |
 | [tp-sim](tp-sim/) | Swift | Simulates llama.cpp/toshllm Metal TP decode all-reduces over a peer group; event-chain vs serialised-pull vs CPU-barrier sync, with a cross-device correctness gate |
 | [pull-contention](pull-contention/) | Swift | Isolates the driver's concurrent remote-view pull penalty (per-op cost, sequential-vs-concurrent, fan-in hang) |
+| [remote-view-check](remote-view-check/) | Swift | Remote-view correctness gate: alignment/staleness matrix, rewrite-round freshness checks |
+| [probe-latency](probe-latency/) | Swift | Latency microbenchmarks for a host-RAM relay all-reduce (per-stage coherence costs, 4-rank relay loop with verify gate, cross-device buffer traps) |
 | [a2a-bw](a2a-bw/) | Swift | Simultaneous bulk pull matrix across a hive: whether bridge capacity is shared across flows (isolated / jumper-control / cross-card / all-to-all phases) |
 | [mtl-bench](mtl-bench/) | C++ | Command-encoder / dispatch microbenchmarks |
 | [iokit-dump](iokit-dump/) | C | Raw IORegistry dump of GPU/PCI families for triage |

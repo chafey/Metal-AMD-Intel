@@ -209,4 +209,58 @@ symptom, affected configuration, workaround, and OS/driver version observed.
 - **Status:** measured and reproduced; root cause (driver work scheduler
   vs remote-page-table arbitration) not isolated
 
+### CPU stores are invisible to a GPU spin-read until cache eviction (~9.6 ms)
+- **Affects:** MacPro7,1 (Intel host) + W6800X Duo, macOS 26.6.2,
+  AMDRadeonX6000 7.0.1 — any `MTLStorageModeShared` staging protocol
+  where the CPU writes and a kernel polls
+- **Symptom:** a pre-committed GPU kernel spinning on a flag in a
+  shared buffer took **~9.6 ms** to observe a value the CPU wrote
+  immediately before commit — the PCIe read sees DRAM, but the CPU's
+  dirty cache line is not written back, so the GPU waits for natural
+  eviction. Symmetric hazard in reverse direction: reading GPU-DMA'd
+  staging from the CPU right after a GPU-written *flag* (payload + flag
+  from one kernel, relaxed order) returned the payload stale 60/60
+  times — GPU posted writes are not release-ordered against the flag
+- **Repro:** `probe-latency` P2 (default GPU-flag variant vs `--noclinv`
+  event variant) and v1 P3 history in
+  `docs/benchmarks/raw/2026-09-12-probe-latency-relay.txt`
+- **Workaround:** (a) completion signalling: use `MTLSharedEvent` via
+  `encodeSignalEvent` on the producer command buffer — the signal
+  implies full memory flush, and the CPU poll of `signaledValue` then
+  sees fresh payload with **no** CPU-side cache invalidation (Xeon
+  IOMMU snoops GPU DMA; 0/100 stale). (b) CPU→GPU direction: CPU must
+  `clflush` every staging cache line after writing (≈1.3 µs/KiB) before
+  signalling; GPU then responds in normal time (80 µs round trip)
+- **Status:** measured; workaround proven (relay4 all-reduce verify
+  PASS across 100 iterations)
+
+### A shared buffer encoded on a non-owning device: no error, wrong data
+- **Affects:** W6800X Duo peer group, macOS 26.6.2, AMDRadeonX6000 7.0.1
+- **Symptom:** `MTLBuffer` allocated with `storageModeShared` on device
+  A and set as a kernel argument on device B passes Metal validation
+  and **executes silently** — the owning device's kernel sees the CPU's
+  data, all other devices read stale/garbage (3 of 4 ranks corrupt in
+  a broadcast-staging experiment; 368 µs/reduce *and wrong*, vs 511 µs
+  correct with per-rank buffers)
+- **Repro:** `probe-latency --relay4 --crossbuf` — verify gate reports
+  FAIL 3 ranks while the run completes normally
+- **Workaround:** one staging buffer **per device** (each GPU touches
+  only its own device's allocation); remote views are no escape hatch —
+  see the next entry
+- **Status:** measured; this is a silent-data-corruption class bug —
+  worth including in the Apple feedback report
+
+### `newRemoteBufferViewForDevice:` returns nil for shared-mode buffers
+- **Affects:** W6800X Duo peer group, macOS 26.6.2, AMDRadeonX6000 7.0.1
+- **Symptom:** the only legal cross-device buffer path (remote view)
+  works exclusively for `storageModePrivate` (VRAM) buffers; calling it
+  on a `storageModeShared` buffer returns nil, so there is no supported
+  way to reference one host-staging buffer from all peer GPUs — combined
+  with the previous entry, cross-device host-broadcast is a dead end
+- **Repro:** `probe-latency --relay4 --crossview` (dies at setup with
+  "no remote view of bcast")
+- **Workaround:** per-device staging buffers + CPU fan-out (measured
+  cost: ~210 µs CPU stage for 4×32 KiB, O(ranks × bytes))
+- **Status:** observed behaviour (may be by design); documented
+
 > Each entry must be reproducible with a checked-in tool or example.

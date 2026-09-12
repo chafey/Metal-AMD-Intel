@@ -1,0 +1,55 @@
+# probe-latency raw runs 2026-09-12 (MacPro7,1, macOS 26.6.2, AMDRadeonX6000 7.0.1)
+## single-hop probes, D=1 remote=3 (cross-card):
+D=1 AMD Radeon PRO W6800X Duo  remote=3 AMD Radeon PRO W6800X Duo  iters=100
+P1 trivial CB            : commit->completed 77 us (med)
+P2 GPU->host + event     : commit->CPU-saw-event 70 us, commit->completed 102 us (med)  copy busy 7.9 us  stale-payload 0/100
+P3 host->GPU clflush fix : CPU-signal->GPU-done 64 us (med)   [CPU write+clflush of 32 KiB: 40 us (med)]
+   P3 consumer verify: PASS
+P4 relay e2e (GPU->host->GPU, 32 KiB): 86 us (med)  [stage1 producer-commit->CPU 12 us]
+   P4 relay verify (full path freshness): PASS
+P5 remote read     4 KiB : wall 80 us (med)  gpu busy 13 us
+P5 remote read    32 KiB : wall 89 us (med)  gpu busy 14 us
+P5 remote read  1024 KiB : wall 114 us (med)  gpu busy 47 us
+
+## same, --noclinv (tests DMA->CPU snoop: stale 0/100 => clinv unnecessary GPU->host):
+D=1 AMD Radeon PRO W6800X Duo  remote=3 AMD Radeon PRO W6800X Duo  iters=100
+P1 trivial CB            : commit->completed 74 us (med)
+P2 GPU->host + event     : commit->CPU-saw-event 71 us, commit->completed 88 us (med)  copy busy 7.6 us  stale-payload 0/100
+P3 host->GPU clflush fix : CPU-signal->GPU-done 67 us (med)   [CPU write+clflush of 32 KiB: 41 us (med)]
+   P3 consumer verify: PASS
+P4 relay e2e (GPU->host->GPU, 32 KiB): 56 us (med)  [stage1 producer-commit->CPU 11 us]
+   P4 relay verify (full path freshness): PASS
+P5 remote read     4 KiB : wall 77 us (med)  gpu busy 11 us
+P5 remote read    32 KiB : wall 82 us (med)  gpu busy 11 us
+P5 remote read  1024 KiB : wall 119 us (med)  gpu busy 46 us
+
+## relay4 per-rank staging, noclinv (headline protocol):
+D=1 AMD Radeon PRO W6800X Duo  remote=4 AMD Radeon PRO W6800X Duo  iters=100
+P6 relay4 all-reduce (32 KiB, 4 ranks, crossbuf=0, crossview=0, noclinv=1): 512 us/reduce (med)  [CPU sum+write+flush stage 214 us]
+   P6 relay4 verify (all ranks, expected=10.0): PASS
+
+## relay4 per-rank staging with clinv:
+D=1 AMD Radeon PRO W6800X Duo  remote=4 AMD Radeon PRO W6800X Duo  iters=100
+P6 relay4 all-reduce (32 KiB, 4 ranks, crossbuf=0, crossview=0, noclinv=0): 602 us/reduce (med)  [CPU sum+write+flush stage 216 us]
+   P6 relay4 verify (all ranks, expected=10.0): PASS
+
+## relay4 --crossbuf (rank0-owned buffer read by all): SILENT CORRUPTION, 3/4 ranks FAIL
+D=1 AMD Radeon PRO W6800X Duo  remote=4 AMD Radeon PRO W6800X Duo  iters=100
+P6 relay4 all-reduce (32 KiB, 4 ranks, crossbuf=1, crossview=0, noclinv=1): 343 us/reduce (med)  [CPU sum+write+flush stage 69 us]
+   P6 relay4 verify (all ranks, expected=10.0): FAIL 3 ranks
+
+## relay4 --crossview: newRemoteBufferViewForDevice returns nil for shared buffers (dies)
+D=1 AMD Radeon PRO W6800X Duo  remote=4 AMD Radeon PRO W6800X Duo  iters=4
+probe-latency: no remote view of bcast on AMD Radeon PRO W6800X Duo
+
+## relay4 size sweep (noclinv):
+P6 relay4 all-reduce (64 KiB, 4 ranks, crossbuf=0, crossview=0, noclinv=1): 730 us/reduce (med)  [CPU sum+write+flush stage 425 us]
+   P6 relay4 verify (all ranks, expected=10.0): PASS
+P6 relay4 all-reduce (128 KiB, 4 ranks, crossbuf=0, crossview=0, noclinv=1): 1160 us/reduce (med)  [CPU sum+write+flush stage 844 us]
+   P6 relay4 verify (all ranks, expected=10.0): PASS
+
+## single-hop P4 size sweep:
+P4 relay e2e (GPU->host->GPU, 64 KiB): 158 us (med)  [stage1 producer-commit->CPU 11 us]
+P4 relay e2e (GPU->host->GPU, 128 KiB): 294 us (med)  [stage1 producer-commit->CPU 11 us]
+P4 relay e2e (GPU->host->GPU, 256 KiB): 599 us (med)  [stage1 producer-commit->CPU 11 us]
+P4 relay e2e (GPU->host->GPU, 1024 KiB): 2200 us (med)  [stage1 producer-commit->CPU 10 us]
