@@ -111,6 +111,15 @@ print(",".join(map(str, max(g.values(), key=len))) if g else "")')
     if [ -n "$PCBIN" ]; then "$PCBIN" --devices "$tp_group" --json
     else $RUN pull-contention -- --devices "$tp_group" --json; fi \
         > build/results/pull-contention.json
+    if [ "$tp_count" -eq 4 ]; then
+      # a2a-bw maps the first two group members to module A and the last
+      # two to module B (true for Duo dies listed per-module by gpu-probe).
+      echo "==> a2a-bw (bridge sharing matrix)"
+      ABIN=tools/.build/release/a2a-bw
+      if [ -x "$ABIN" ]; then "$ABIN" --devices "$tp_group" --json
+      else $RUN a2a-bw -- --devices "$tp_group" --json; fi \
+          > build/results/a2a-bw.json
+    fi
   else
     echo "==> skipping tp-sim / pull-contention (no non-zero Metal peer group)"
   fi

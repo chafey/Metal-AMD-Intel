@@ -5,9 +5,9 @@ C tool (`iokit-dump`) and any C++ tools use their own CMake builds and are
 driven from the root `Makefile`.
 
 > **Status:** `gpu-probe` (Swift), `if-bench` (Swift), `tp-sim` (Swift),
-> `pull-contention` (Swift) and `iokit-dump` (C) are implemented, as is
-> `mtl-bench` (C++). All six ran on MPX hardware; results live in
-> [`../docs/benchmarks/`](../docs/benchmarks/).
+> `pull-contention` (Swift), `a2a-bw` (Swift) and `iokit-dump` (C) are
+> implemented, as is `mtl-bench` (C++). All seven ran on MPX hardware;
+> results live in [`../docs/benchmarks/`](../docs/benchmarks/).
 
 | Tool | Language | Purpose |
 |---|---|---|
@@ -15,6 +15,7 @@ driven from the root `Makefile`.
 | [if-bench](if-bench/) | Swift | Local / cross-device (IOSurface staging **and** peer-group P2P remote views) / host copy bandwidth & latency; concurrent-load repro |
 | [tp-sim](tp-sim/) | Swift | Simulates llama.cpp/toshllm Metal TP decode all-reduces over a peer group; event-chain vs serialised-pull vs CPU-barrier sync, with a cross-device correctness gate |
 | [pull-contention](pull-contention/) | Swift | Isolates the driver's concurrent remote-view pull penalty (per-op cost, sequential-vs-concurrent, fan-in hang) |
+| [a2a-bw](a2a-bw/) | Swift | Simultaneous bulk pull matrix across a hive: whether bridge capacity is shared across flows (isolated / jumper-control / cross-card / all-to-all phases) |
 | [mtl-bench](mtl-bench/) | C++ | Command-encoder / dispatch microbenchmarks |
 | [iokit-dump](iokit-dump/) | C | Raw IORegistry dump of GPU/PCI families for triage |
 

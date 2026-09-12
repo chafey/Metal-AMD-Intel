@@ -33,5 +33,9 @@ let package = Package(
             name: "pull-contention",
             path: "Sources/pull-contention"
         ),
+        .executableTarget(
+            name: "a2a-bw",
+            path: "Sources/a2a-bw"
+        ),
     ]
 )

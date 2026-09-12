@@ -10,6 +10,7 @@ to the tool + exact command and the raw JSON in [raw/](raw/).
 | 2026-09-11 | [2× W6800X Duo — copy paths (p2p, staging, local, host) and API overhead](2026-09-11-w6800x-duo-copy-paths.md) | `if-bench` (p2p default + staging), `mtl-bench` |
 | 2026-09-11 | [2× W6800X Duo — peer-group P2P pull matrix (all 6 die pairs)](2026-09-11-w6800x-duo-p2p-peer-group-matrix.md) | `if-bench` (default p2p route) |
 | 2026-09-12 | [2× W6800X Duo — llama.cpp-style TP-4 decode all-reduce simulation](2026-09-12-w6800x-duo-tp-decode-sim.md) | `tp-sim`, `pull-contention` |
+| 2026-09-12 | [2× W6800X Duo — is bridge bandwidth shared across simultaneous flows?](2026-09-12-w6800x-duo-bridge-share.md) | `a2a-bw` |
 
 Captures are scoped to the two W6800X Duo modules; a third GPU (RX 6900
 XT, display) is present in the machine listings but not measured. All

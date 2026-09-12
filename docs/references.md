@@ -4,6 +4,13 @@ Links to primary sources, related projects, and community findings.
 
 ## Apple
 
+- Mac Pro (2019) — Technical Specifications —
+  <https://support.apple.com/en-ge/118461> (accessed 2026-09-12) — states
+  Infinity Fabric Link capacity: W6800X / W6900X "up to 84GB/s in each
+  direction"; W6800X Duo onboard link same; external (bridge) connection
+  described for four-GPU linking **without a bandwidth figure**; Vega II /
+  Vega II Duo "up to 84GB/s" (direction convention unstated). Used by
+  [hardware/infinity-fabric.md](hardware/infinity-fabric.md).
 - Metal Family Recommendations — `MTLGPUFamily` docs for AMD tiers
 - Metal Feature Set Tables — per-feature support on AMD GPUs
 - `IOPCIDevice` / IOKit PCI Family Introductions — reading IORegistry properties

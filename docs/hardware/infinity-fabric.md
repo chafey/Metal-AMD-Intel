@@ -28,11 +28,39 @@ for Metal programs.
 - Two Duo cards with an on-module jumper on each but **no bridge** are two
   *independent* 2-GPU IF domains: the jumpers do not connect the cards to
   each other.
-- TODO: link widths and generation per hop (on-module jumper vs cross-card
-  bridge),
+- Apple rates the W6x-series IF link at 84 GB/s per direction
+  ([tech specs](https://support.apple.com/en-ge/118461)), but gives no
+  figure for the external bridge connection on Duo modules. TODO: link
+  widths and generation per hop (on-module jumper vs cross-card bridge),
   confirmed from IORegistry captures rather than datasheet guesses.
 
 ## Bandwidth and latency
+
+### Apple-stated link capacity
+
+Per [Apple's Mac Pro (2019) technical specifications](https://support.apple.com/en-ge/118461):
+
+- **W6800X / W6900X:** "Infinity Fabric Link connection enables two
+  [card] GPUs to connect at up to **84 GB/s in each direction**".
+- **W6800X Duo:** the **onboard** (jumper) link "connects two W6800X GPUs at
+  up to 84 GB/s in each direction"; for the **external** (bridge) connection
+  Apple says only that it "enables two W6800X Duo modules to connect four
+  W6800X GPUs" — **no bandwidth figure is stated for the bridge link**.
+  Measured behavior of the loaded bridge (~85–89 GB/s combined, shared,
+  not 84/direction) is in the
+  [2026-09-12 bridge-share report](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md).
+- **Vega II / Vega II Duo:** 84 GB/s stated *without* the "in each direction"
+  qualifier (direction convention unstated).
+
+Reading these numbers: 84 GB/s per direction is the capacity of **one
+physical link**, shared by every flow whose path traverses it — it is a
+link rating, not a per-GPU-pair reservation. Inside a Duo (jumper, exactly
+two GPUs on one link) the distinction is moot; across a bridge, whether
+Apple's 84 GB/s applies and how it divides among flows crossing the single
+external connection per module is **not documented by Apple and not yet
+measured** — see the open question below the findings.
+
+### Measured
 
 Measured numbers live in [../benchmarks/](../benchmarks/) and are produced by
 [`tools/if-bench`](../../tools/if-bench). Summary table (fill in as reports land):
@@ -70,6 +98,26 @@ Findings from the 2026-09-11 reports, pending independent confirmation:
   whether remote access rides the xGMI hive is not yet directly evidenced
   for the staging route (for the p2p route, the peer group == xGMI hive
   correspondence is directly evidenced by `peerGroupID` values).
+
+| W6800X Duo ×2 | cross-card bulk, 8 streams simultaneously | 64 MiB × 8/stream | aggregate 50.7–54.0 GB/s shared; per-stream 6.4–18.8 | — | [2026-09-12 bridge-share](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) |
+| W6800X Duo ×2 | on-module jumper, both pairs simultaneously | 64 MiB × 8/stream | additive: aggregate 90.3–96.1 GB/s, per-stream 22.6–23.7 | — | [2026-09-12 bridge-share](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) |
+
+**Bridge bandwidth IS shared (answered 2026-09-12, `a2a-bw`).** Simultaneous
+cross-card streams share one link: eight bulk cross-card streams total
+~51–54 GB/s aggregate while an isolated single stream runs ~29 GB/s, and
+loaded both ways the directions sum to ~85–89 GB/s *combined* — not 84 GB/s
+**per direction**. The direction split is consistently asymmetric (module A
+consumers get ~1.3× module B consumers') and per-stream arbitration is
+unfair (up to 3× spread). By contrast, simultaneous transfers on the two
+independent **on-module jumpers** stay additive (~90–96 GB/s aggregate) and
+are unaffected by bridge saturation: the jumper and the bridge are
+separately-switched capacity. Capacity planning: budget the bridge as
+~50 GB/s per direction **shared by all cross-card flows** — see
+[the bridge-share report](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md).
+This does **not** contradict the small-op findings in
+[`tp-sim`/`pull-contention`](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md):
+there the cost was driver-side scheduling latency far below any bandwidth
+limit; here flows are bulk and hit the physical link.
 
 Directions worth distinguishing:
 

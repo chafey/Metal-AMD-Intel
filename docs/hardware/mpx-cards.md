@@ -55,6 +55,14 @@ two GPUs; it is not a cross-card option.)
 | 2× Vega II Duo, Link jumpers only | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) | 1 TB/s per GPU | cards **not** IF connected; jumper joins GPUs within each module | 2 hives × 2 nodes |
 | 2× Vega II Duo, Link bridge | 4× Vega 20 | 4× 32 GB HBM2 (128 GB) | 1 TB/s per GPU | ⚠️ may not be an Apple-supported configuration | 1 hive × 4 nodes (unverified) |
 
+IF link capacity per Apple: the W6800X / W6900X Infinity Fabric Link connects
+two GPUs "at up to 84GB/s in each direction", and the W6800X Duo's onboard
+(jumper) link likewise; Apple gives **no bandwidth figure for the external
+(bridge) connection**, only that it links four GPUs
+([tech specs](https://support.apple.com/en-ge/118461); link-capacity vs
+per-flow semantics discussed in
+[infinity-fabric.md](infinity-fabric.md)).
+
 Note for Duo cards: each module's on-module **Infinity Fabric Link jumper**
 makes its two GPUs one IF domain regardless of any bridge. Two Duo cards with
 jumpers but no bridge are therefore **two independent 2-GPU IF domains**; the
