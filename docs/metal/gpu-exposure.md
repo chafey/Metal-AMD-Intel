@@ -24,10 +24,12 @@ Captured on Mac Pro (2019), macOS 26.6.2 (25G83), 2× Radeon Pro W6800X Duo,
   `0x106b:0x0222`, class `0x030000`. PCIe link negotiates 16 GT/s (Gen 4)
   x16 (`IOPCIExpressLinkStatus = 0x7104`).
 - **xGMI hive:** each `GFX0` function reports `XGMI_Enabled=1`,
-  `InfinityFabricLinks=1`, `XGMI_HiveSize=4`, and `XGMI_NodeIndex` 0…3 —
+  `InfinityFabricLinks=1` (a boolean "yes, IF-capable" — **not** a link
+  count), `XGMI_HiveSize=4`, and `XGMI_NodeIndex` 0…3 —
   one hive spanning both cards with one node per die. Node index does not
   map monotonically to anything Metal exposes; correlate per device via
-  `registryID`.
+  `registryID`. The registry does **not** expose the physical wiring (which
+  die's link connects to which).
 - Per device: `recommendedMaxWorkingSetSize = 34,342,961,152` bytes
   (≈ 32 GiB, i.e. one die's VRAM, not the card's 64 GB).
 - Families: `mac1`, `mac2`, `common1–3`, `metal3`. Feature sets reported

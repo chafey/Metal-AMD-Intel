@@ -218,10 +218,31 @@ for c in 0..<n { for p in 0..<n where p != c { allSpecs.append(Spec(c: c, p: p))
 let sameSpecs = allSpecs.filter { moduleOf(opts.devices[$0.c]) == moduleOf(opts.devices[$0.p]) }
 let crossSpecs = allSpecs.filter { moduleOf(opts.devices[$0.c]) != moduleOf(opts.devices[$0.p]) }
 
+// Concurrency-controlled cross-card subsets. Same stream COUNT as the B
+// control, so if B totals ~2x these, the cross-card aggregate is a physical
+// medium limit (or a count-independent penalty), not merely a side effect
+// of running more streams at once.
+var cross1Pair: [Spec] = []   // 2 streams: moduleA[0] <-> moduleB[0]
+if n >= 2 && opts.moduleA.count >= 1 && opts.moduleB.count >= 1 {
+    let a = opts.devices.firstIndex(of: opts.moduleA[0])!, b = opts.devices.firstIndex(of: opts.moduleB[0])!
+    cross1Pair = [Spec(c: a, p: b), Spec(c: b, p: a)]
+}
+var cross2Pairs: [Spec] = []  // 4 streams: two disjoint cross-card pairs
+if opts.moduleA.count >= 2 && opts.moduleB.count >= 2 {
+    let a = opts.moduleA.map { opts.devices.firstIndex(of: $0)! }
+    let b = opts.moduleB.map { opts.devices.firstIndex(of: $0)! }
+    cross2Pairs = [Spec(c: a[0], p: b[0]), Spec(c: b[0], p: a[0]),
+                   Spec(c: a[1], p: b[1]), Spec(c: b[1], p: a[1])]
+}
+
 progress("phase A: isolated (one stream at a time)")
 phase("A_isolated", allSpecs, concurrent: false)
 progress("phase B: same-module pairs simultaneous (control)")
 phase("B_jumper_control", sameSpecs, concurrent: true)
+progress("phase B2: ONE cross-card pair, both directions (2 streams)")
+phase("B2_crosscard_2streams", cross1Pair, concurrent: true)
+progress("phase B3: TWO cross-card pairs, both directions (4 streams)")
+phase("B3_crosscard_4streams", cross2Pairs, concurrent: true)
 progress("phase C: cross-card streams simultaneous")
 phase("C_cross_card", crossSpecs, concurrent: true)
 progress("phase D: full all-to-all simultaneous")

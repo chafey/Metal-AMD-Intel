@@ -46,19 +46,23 @@ Per [Apple's Mac Pro (2019) technical specifications](https://support.apple.com/
   up to 84 GB/s in each direction"; for the **external** (bridge) connection
   Apple says only that it "enables two W6800X Duo modules to connect four
   W6800X GPUs" — **no bandwidth figure is stated for the bridge link**.
-  Measured behavior of the loaded bridge (~85–89 GB/s combined, shared,
-  not 84/direction) is in the
+  Measured behaviour of the loaded bridge (hive-global ~90 GB/s pool,
+  shared by all flows, on-module and cross-card alike) is in the
   [2026-09-12 bridge-share report](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md).
 - **Vega II / Vega II Duo:** 84 GB/s stated *without* the "in each direction"
   qualifier (direction convention unstated).
 
-Reading these numbers: 84 GB/s per direction is the capacity of **one
-physical link**, shared by every flow whose path traverses it — it is a
-link rating, not a per-GPU-pair reservation. Inside a Duo (jumper, exactly
-two GPUs on one link) the distinction is moot; across a bridge, whether
-Apple's 84 GB/s applies and how it divides among flows crossing the single
-external connection per module is **not documented by Apple and not yet
-measured** — see the open question below the findings.
+Reading these numbers: 84 GB/s per direction is a rating for **one
+physical link** — a link capacity, not a per-GPU-pair reservation. What
+the measurements actually show on a bridged 2× W6800X Duo hive is a
+**hive-global ~90 GB/s pool** (both directions combined) shared by every
+concurrent bulk flow, with no measurable distinction between on-module
+and cross-card paths — well below what the link ratings would allow.
+Whether on-module traffic physically traverses the bridge adapter or an
+onboard link is **not exposed by the IORegistry and cannot be
+distinguished by any measurement in this repo** (both paths perform
+identically); capacity planning should therefore use the single shared
+pool regardless of path.
 
 ### Measured
 
@@ -99,25 +103,28 @@ Findings from the 2026-09-11 reports, pending independent confirmation:
   for the staging route (for the p2p route, the peer group == xGMI hive
   correspondence is directly evidenced by `peerGroupID` values).
 
-| W6800X Duo ×2 | cross-card bulk, 8 streams simultaneously | 64 MiB × 8/stream | aggregate 50.7–54.0 GB/s shared; per-stream 6.4–18.8 | — | [2026-09-12 bridge-share](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) |
-| W6800X Duo ×2 | on-module jumper, both pairs simultaneously | 64 MiB × 8/stream | additive: aggregate 90.3–96.1 GB/s, per-stream 22.6–23.7 | — | [2026-09-12 bridge-share](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) |
+| W6800X Duo ×2 | cross-card bulk, 4 streams (2 disjoint pairs, both directions) | 64 MiB × 8/stream | aggregate 90.7 GB/s; per-stream 22.7–24.4 — identical to the 4-stream same-module control | — | [2026-09-12 bridge-share follow-up](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) |
+| W6800X Duo ×2 | cross-card bulk, 8 streams simultaneously | 64 MiB × 8/stream | aggregate 50.7–55.2 GB/s; per-stream 6.4–18.8 (unfair, run-to-run unstable) | — | [2026-09-12 bridge-share](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) |
+| W6800X Duo ×2 | same-module pairs, both simultaneously (4 streams) | 64 MiB × 8/stream | aggregate 90.3–96.1 GB/s, per-stream 22.6–24.2 — **no better than cross-card at equal stream count** | — | [2026-09-12 bridge-share](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) |
 
-**Bridge bandwidth IS shared (answered 2026-09-12, `a2a-bw`).** Simultaneous
-cross-card streams share one link: eight bulk cross-card streams total
-~51–54 GB/s aggregate while an isolated single stream runs ~29 GB/s, and
-loaded both ways the directions sum to ~85–89 GB/s *combined* — not 84 GB/s
-**per direction**. The direction split is consistently asymmetric (module A
-consumers get ~1.3× module B consumers') and per-stream arbitration is
-unfair (up to 3× spread). By contrast, simultaneous transfers on the two
-independent **on-module jumpers** stay additive (~90–96 GB/s aggregate) and
-are unaffected by bridge saturation: the jumper and the bridge are
-separately-switched capacity. Capacity planning: budget the bridge as
-~50 GB/s per direction **shared by all cross-card flows** — see
+**Hive capacity is one shared ~90 GB/s pool (answered 2026-09-12,
+`a2a-bw`, revised after the concurrency-controlled follow-up).** Even
+four simultaneous cross-card bulk streams only reach ~90 GB/s aggregate
+(4× an isolated stream's ~29 would be ~116; 8 streams would be ~232) —
+so the bridged hive does not deliver per-pair capacity, and nothing
+resembles 84 GB/s **per direction** under load. Aggregate scales linearly
+to 4 concurrent streams (~24 GB/s each, fair split, ~47 GB/s per
+direction) and then *collapses*: 8 streams total only 51–55 GB/s with
+unfair, unstable shares — a driver-side scheduling penalty with the same
+signature as the small-op contention in
+[`tp-sim`/`pull-contention`](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md),
+not a link limit (the same cross-card path carries 90.7 GB/s at 4
+streams). Earlier claims that the on-module Infinity Fabric Link jumper
+provides independent, additive capacity were a stream-count artifact:
+concurrency-matched, cross-card streams perform identically to same-module
+streams. Capacity planning: budget every flow — on-module or cross-card —
+against the same ~90 GB/s pool and keep concurrent bulk flows ≤4; see
 [the bridge-share report](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md).
-This does **not** contradict the small-op findings in
-[`tp-sim`/`pull-contention`](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md):
-there the cost was driver-side scheduling latency far below any bandwidth
-limit; here flows are bulk and hit the physical link.
 
 Directions worth distinguishing:
 
