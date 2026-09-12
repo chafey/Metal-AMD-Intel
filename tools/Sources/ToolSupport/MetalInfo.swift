@@ -22,6 +22,7 @@ public enum MetalInfo {
         // macOS 15 SDKs) were removed/remodeled by the macOS 26 SDK; PCI
         // position comes from IOKit instead (AAPL,slot-name etc.).
         info["isHeadless"] = device.isHeadless
+        info["peerGroupIDHex"] = String(format: "0x%016llx", device.peerGroupID)
         info["recommendedMaxWorkingSetSize"] = Int(device.recommendedMaxWorkingSetSize)
         info["maxThreadsPerThreadgroup"] = [
             "width": device.maxThreadsPerThreadgroup.width,
@@ -68,6 +69,41 @@ public enum MetalInfo {
         info["featureSets"] = supported
         info["maxFeatureSet"] = supported.last ?? "none"
 
+        // Limits + boolean capabilities, for the MPX-vs-retail feature
+        // comparison in docs/metal/gpu-exposure.md.
+        // NB: a device-level `threadExecutionWidth` selector exists on the
+        // backing class but returns 0 on this driver; the real wave width
+        // comes from pipelineCaps below.
+        info["limits"] = [
+            "maxThreadgroupMemoryLength": uintProperty(device, "maxThreadgroupMemoryLength") ?? 0,
+            "maxBufferLength": uintProperty(device, "maxBufferLength") ?? 0,
+        ]
+        var caps: [String: Bool] = [:]
+        for (key, sel) in [
+            ("hasUnifiedMemory", "hasUnifiedMemory"),
+            ("isLowPower", "isLowPower"),
+            ("areRasterOrderGroupsSupported", "areRasterOrderGroupsSupported"),
+            ("supports32BitFloatFiltering", "supports32BitFloatFiltering"),
+            ("supportsPullModelInterpolation", "supportsPullModelInterpolation"),
+            ("supportsVertexAmplification", "supportsVertexAmplification"),
+        ] {
+            if let v = boolProperty(device, sel) { caps[key] = v }
+        }
+        info["capabilities"] = caps
+
+        // The device-level threadExecutionWidth is not exposed on this SDK;
+        // query a compiled pipeline instead (it reports the device's wave
+        // width). One trivial kernel per device, compiled once.
+        let probeSource = "kernel void _probe(device float *p [[buffer(0)]], uint t [[thread_position_in_threadgroup]]) { p[t] = 1; }"
+        if let lib = try? device.makeLibrary(source: probeSource, options: nil),
+           let fn = lib.makeFunction(name: "_probe"),
+           let pso = try? device.makeComputePipelineState(function: fn) {
+            info["pipelineCaps"] = [
+                "threadExecutionWidth": pso.threadExecutionWidth,
+                "maxTotalThreadsPerThreadgroup": pso.maxTotalThreadsPerThreadgroup,
+            ]
+        }
+
         return info
     }
 
@@ -82,5 +118,28 @@ public enum MetalInfo {
         typealias Fn = @convention(c) (AnyObject, Selector, UInt) -> Bool
         let fn = unsafeBitCast(method_getImplementation(method), to: Fn.self)
         return fn(device, sel, arg)
+    }
+
+    /// Read a no-argument `-(NSUInteger)selector` property (0 when absent).
+    private static func uintProperty(_ device: MTLDevice, _ selectorName: String) -> Int? {
+        let sel = Selector(selectorName)
+        guard let cls = object_getClass(device),
+              let method = class_getInstanceMethod(cls, sel)
+        else { return nil }
+        typealias Fn = @convention(c) (AnyObject, Selector) -> UInt
+        let fn = unsafeBitCast(method_getImplementation(method), to: Fn.self)
+        return Int(fn(device, sel))
+    }
+
+    /// Read a no-argument `-(BOOL)selector` property; nil when the selector
+    /// is unavailable on this SDK/driver (so absence != false).
+    private static func boolProperty(_ device: MTLDevice, _ selectorName: String) -> Bool? {
+        let sel = Selector(selectorName)
+        guard let cls = object_getClass(device),
+              let method = class_getInstanceMethod(cls, sel)
+        else { return nil }
+        typealias Fn = @convention(c) (AnyObject, Selector) -> Bool
+        let fn = unsafeBitCast(method_getImplementation(method), to: Fn.self)
+        return fn(device, sel)
     }
 }

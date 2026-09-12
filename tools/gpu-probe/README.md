@@ -30,8 +30,18 @@ swift run --package-path tools gpu-probe -- --json # machine-readable
   `subsystem-vendor-id`, `subsystem-id`, `class-code`, `AAPL,slot-name`, and
   the negotiated PCIe link decoded from `IOPCIExpressLinkStatus`
   (bits 0-3 speed, bits 4-9 width — e.g. `0x7104` = 16 GT/s x16).
+- **Capability table**: device limits (`maxThreadgroupMemoryLength`,
+  `maxBufferLength`), boolean caps (raster order groups, 32-bit float
+  filtering, pull-model interpolation, vertex amplification, unified
+  memory, low power), and wave metrics from a trivially compiled compute
+  pipeline (`threadExecutionWidth`, `maxTotalThreadsPerThreadgroup`) — the
+  device-level `threadExecutionWidth` selector exists on the backing class
+  but returns 0 on AMD drivers, so the pipeline query is authoritative.
+  Used for the MPX-vs-retail table in
+  `docs/metal/gpu-exposure.md`.
 - **xGMI / Infinity Fabric**: scans the GPU function's subtree for
-  `InfinityFabricLinks`, `XGMI_Enabled`, `XGMI_HiveSize`, `XGMI_NodeIndex`.
+  `InfinityFabricLinks` (a boolean "IF-capable" flag — **not** a link
+  count), `XGMI_Enabled`, `XGMI_HiveSize`, `XGMI_NodeIndex`.
 - **Duo-partition correlation**: Metal devices backed by the same
   `IOPCIDevice` function are reported as one physical module. (On systems
   where each die exposes its own PCI function — as observed on a 2× W6800X

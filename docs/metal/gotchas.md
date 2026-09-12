@@ -153,13 +153,20 @@ symptom, affected configuration, workaround, and OS/driver version observed.
 - **Status:** observed; file-worthy (looks like a driver deadlock in
   remote-page-table handling), not yet filed
 
-### (placeholder) Duo partition co-scheduling stalls
-- **Affects:** W6800X Duo, macOS 14.x — TODO: confirm
-- **Symptom:** TODO: describe observed stalls when both partitions run heavy
-  concurrent workloads
-- **Repro:** `tools/if-bench --mode concurrent-load`
-- **Workaround:** TODO
-- **Status:** investigating
+### Concurrent flows are arbitrated unfairly (no partition stalls)
+- **Affects:** 2× W6800X Duo xGMI hive of 4, macOS 26.6.2,
+  AMDRadeonX6000 7.0.1
+- **Symptom:** this is *not* a stall — both partitions keep making progress,
+  but above 4 simultaneous bulk flows the hive's aggregate throughput
+  *falls* (~90 GB/s at 4 streams → ~51–55 GB/s at 8) and per-stream shares
+  become unfair (up to 3× spread) and swap winners run-to-run. Scheduling
+  decisions are made driver-side, not by physical link topology
+- **Repro:** `tools/.build/release/a2a-bw` (phases B3 vs C are the
+  concurrency-matched comparison)
+- **Workaround:** keep concurrent bulk flows at ≤4 and budget the hive as
+  one ~90 GB/s pool — see
+  [bridge-share report](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md)
+- **Status:** measured and reproduced (three runs); root cause (driver
+  work scheduler vs remote-page-table arbitration) not isolated
 
-> Replace this placeholder with verified findings only; each entry must be
-> reproducible with a checked-in tool or example.
+> Each entry must be reproducible with a checked-in tool or example.

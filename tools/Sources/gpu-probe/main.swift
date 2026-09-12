@@ -219,6 +219,19 @@ for report in deviceReports {
     let families = (report["gpuFamilies"] as? [String] ?? []).joined(separator: ", ")
     print("    families: \(families.isEmpty ? "none" : families)"
         + "  maxFeatureSet: \(report["maxFeatureSet"] as? String ?? "?")")
+    if let limits = report["limits"] as? [String: Int] {
+        print("    limits: tgMemory=\(limits["maxThreadgroupMemoryLength"] ?? 0)"
+            + " maxBuffer=\(limits["maxBufferLength"] ?? 0)")
+    }
+    if let pso = report["pipelineCaps"] as? [String: Int] {
+        print("    wave: execWidth=\(pso["threadExecutionWidth"] ?? 0)"
+            + " maxThreads/TG=\(pso["maxTotalThreadsPerThreadgroup"] ?? 0)")
+    }
+    if let caps = report["capabilities"] as? [String: Bool], !caps.isEmpty {
+        let on = caps.keys.filter { caps[$0] == true }.sorted().joined(separator: ", ")
+        let off = caps.keys.filter { caps[$0] == false }.sorted().joined(separator: ", ")
+        print("    caps: yes[\(on.isEmpty ? "-" : on)] no[\(off.isEmpty ? "-" : off)]")
+    }
     if let correlation = report["correlation"] as? [String: Any] {
         if (correlation["method"] as? String) == "registryEntryID" {
             print("    pci: \(correlation["pciService"] as? String ?? "?")"

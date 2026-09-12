@@ -88,13 +88,19 @@ Open questions (capture with `iokit-dump`, measure with `if-bench`):
   jumpers fitted, no bridge) to document the unbridged hive shape — expected
   two independent hives of 2 (`XGMI_HiveSize = 2` each), to be confirmed
 - Link widths per hop (on-module Infinity Fabric Link jumper vs cross-card
-  Infinity Fabric Link bridge) and whether they differ
-- Bandwidth/latency of the cross-card IF hop vs intra-card hop vs PCIe
-  fallback (if-bench directions 3 and 5)
-- Link widths per hop (on-module Infinity Fabric Link jumper vs cross-card
-  Infinity Fabric Link bridge) and whether they differ
-- Bandwidth/latency of the cross-card IF hop vs intra-card hop vs PCIe
-  fallback (if-bench directions 3 and 5)
+  Infinity Fabric Link bridge) and whether they differ — a full IORegistry
+  capture (`iokit-dump`, 2× W6800X Duo + bridge) exposes **no** per-link
+  width/generation keys, so this cannot be settled from the registry; only
+  datasheets or Apple documentation could, and neither is public
+- Bandwidth/latency of the cross-card IF hop vs intra-card hop vs the
+  host path: **measured**. On peer pulls, cross-card ≈ on-module
+  (single-stream ~27–30 GB/s either way,
+  [p2p matrix](../benchmarks/2026-09-11-w6800x-duo-p2p-peer-group-matrix.md);
+  hive-pool behaviour under concurrency in the
+  [bridge-share report](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md)).
+  Without a bridge no peer group forms, so the practical fallback is the
+  IOSurface staging route — measured in the
+  [copy-paths report](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md).
 - Per-slot constraints: which slot pairs the bridge supports, and per-CPU
   attachment on dual-socket parts (see [host-machines.md](host-machines.md))
 

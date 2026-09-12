@@ -126,19 +126,17 @@ streams. Capacity planning: budget every flow — on-module or cross-card —
 against the same ~90 GB/s pool and keep concurrent bulk flows ≤4; see
 [the bridge-share report](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md).
 
-Directions worth distinguishing:
+Directions worth distinguishing — status on the 2× W6800X Duo + bridge
+reference configuration (numbers and method in the linked reports):
 
-1. Host → partition A (PCIe inbound)
-2. Host → partition B
-3. Partition A ↔ partition B (on-module Infinity Fabric Link jumper —
-   headline
-   measurement)
-4. Partition A ↔ partition A (local VRAM, the baseline)
-5. Cross-card **over the Infinity Fabric Link bridge** (card 1 ↔ card 2
-   direct
-   peer path)
-6. Cross-card **without Infinity Fabric Link bridge** (through the host —
-   comparison/fallback)
+| # | Direction | Status | Where |
+|---|---|---|---|
+| 1 | Host → partition (PCIe inbound) | measured | [copy-paths report](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md) |
+| 2 | Partition → host (PCIe outbound) | measured | same report |
+| 3 | On-module GPU ↔ GPU (Infinity Fabric Link jumper) | measured | [p2p matrix](../benchmarks/2026-09-11-w6800x-duo-p2p-peer-group-matrix.md) (isolated) + [bridge-share](../benchmarks/2026-09-12-w6800x-duo-bridge-share.md) (concurrent) |
+| 4 | GPU ↔ own VRAM (local baseline) | measured | copy-paths report |
+| 5 | Cross-card over the Infinity Fabric Link bridge | measured | same as #3 — performs identically to on-module at equal concurrency |
+| 6 | Cross-card **without** bridge | no peer group forms, so no p2p route exists to measure; the practical fallback is the IOSurface staging route, measured in the copy-paths report | copy-paths report |
 
 ## Programming model implications
 

@@ -50,10 +50,35 @@ Still open:
 
 ## Capability differences vs. desktop AMD cards
 
-MPX parts are not identical to their retail brothers (e.g. W6800X vs retail
-W6800). TODO: tabulate feature-set differences observed via
-`MTLDevice` capability checks (`supportsFamily:`, `supportsFeatureSet:`,
-max threadgroup memory, GPU tiers).
+Measured, not folklore: the reference machine carries both Navi 21 flavors —
+MPX **W6800X Duo** (4 dies) and a retail **RX 6900 XT** (display card) —
+under one driver stack (AMDRadeonX6000 7.0.1, macOS 26.6.2). Capture:
+`tools/.build/release/gpu-probe --json` →
+[`raw/2026-09-12-gpu-probe-caps.json`](../benchmarks/raw/2026-09-12-gpu-probe-caps.json).
+
+| Probe (MTLDevice / pipeline) | W6800X Duo (per die) | RX 6900 XT | Δ |
+|---|---|---|---|
+| `supportsFamily:` | mac1, mac2, common1–3, metal3 | same | none |
+| `supportsFeatureSet:` | GPUFamily1_v1–v4, GPUFamily2_v1 (max = GPUFamily2_v1) | same | none |
+| `maxThreadgroupMemoryLength` | 65 536 B | 65 536 B | none |
+| `maxBufferLength` | 3 758 096 384 B (~3.5 GiB) | same | none |
+| max threads/threadgroup (device + pipeline) | 1024×1024×1024; wave 32 | same | none |
+| Raster order groups / 32-bit float filtering / pull-model interpolation / vertex amplification | all supported | all supported | none |
+| unified memory / low power | no / no | no / no | none |
+| `recommendedMaxWorkingSetSize` | 34 342 961 152 B (≈32 GB) | 17 163 091 968 B (≈16 GB) | tracks VRAM |
+| xGMI peer group (`peerGroupID`) | non-zero, hive of 4 | 0 (no peer) | **MPX + bridge only** |
+
+**Takeaway:** on this driver stack the MPX W6800X exposes *no Metal
+feature-level differences* vs the retail RX 6900 XT (same silicon family);
+what the MPX + Infinity Fabric Link bridge configuration adds is the xGMI
+peer group, and the retail-vs-MPX distinctions that matter (VRAM, ECC,
+clocking, thermals) are not visible through `MTLDevice` capability checks.
+Note the wave width: 32 (Navi wave32) — kernels tuned for wave64 will
+underutilise these GPUs regardless of card type.
+
+Caveat: the retail comparison part here is the RX 6900 XT, not the
+workstation W6800; a W6800 capture could still add ECC/RDMA-adjacent
+registry differences, though none are expected at the Metal API level.
 
 ## Multi-device behavior
 
