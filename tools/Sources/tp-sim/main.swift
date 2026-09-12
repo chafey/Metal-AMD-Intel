@@ -35,7 +35,8 @@ var opts = (
     layers: 80,
     reduces: 2,              // all-reduces per layer
     tokens: 8,
-    sync: "both"             // cpu | event | chain | both
+    sync: "both",            // cpu | event | chain | both
+    pull: "blit"             // blit | kernel | fused
 )
 var wantJSON = false
 func printUsage() {
@@ -58,6 +59,15 @@ func printUsage() {
       --tokens T          timed tokens (default 8, plus one warmup token)
       --sync cpu|event|chain|both   synchronization style to measure
                           (default both = event, chain, cpu)
+      --pull blit|kernel|fused
+                          how the peer partials cross the fabric:
+                          blit   = copy-engine pull into local VRAM,
+                                   then sum (toshllm pattern, default)
+                          kernel = compute-unit pull into local VRAM,
+                                   then sum
+                          fused  = one kernel reads the remote views
+                                   directly and writes the sum (no local
+                                   copy)
       --json              machine-readable output
     """)
 }
@@ -77,6 +87,7 @@ while ai < args.count {
     case "--reduces": ai += 1; guard ai < args.count else { break }; opts.reduces = Int(args[ai]) ?? opts.reduces
     case "--tokens":  ai += 1; guard ai < args.count else { break }; opts.tokens  = Int(args[ai]) ?? opts.tokens
     case "--sync":    ai += 1; guard ai < args.count else { break }; opts.sync    = args[ai]
+    case "--pull":    ai += 1; guard ai < args.count else { break }; opts.pull    = args[ai]
     case "--json":    wantJSON = true
     case "-h", "--help": printUsage(); exit(0)
     default: die("unknown argument \(args[ai]) (see --help)")
@@ -84,6 +95,8 @@ while ai < args.count {
     ai += 1
 }
 guard ["cpu", "event", "chain", "both"].contains(opts.sync) else { die("--sync must be cpu|event|chain|both") }
+guard ["blit", "kernel", "fused"].contains(opts.pull) else { die("--pull must be blit|kernel|fused") }
+guard opts.hidden % 4 == 0 else { die("--hidden must be a multiple of 4 (16-byte pull slots)") }
 
 // MARK: - Metal setup
 
@@ -117,9 +130,8 @@ kernel void produce(device float *out [[buffer(0)]],
                     uint idx [[thread_position_in_grid]]) {
     if (idx < n) out[idx] = value;
 }
-// Destination-side pull of a peer partial is done with a blit copy from a
-// remote buffer view (toshllm's ggml_metal_cpy_xdev_peer pattern); only the
-// local sum runs as a kernel.
+// Pulls of peer partials across the fabric run as blit copies, compute
+// copies, or are fused into the sum (see --pull). sumN runs locally.
 kernel void sumN(device const float *own [[buffer(0)]],
                  device const float *pulls [[buffer(1)]],
                  device float *out [[buffer(2)]],
@@ -132,6 +144,37 @@ kernel void sumN(device const float *own [[buffer(0)]],
         out[idx] = s;
     }
 }
+// Compute-engine pull of one remote view. IMPORTANT (2026-09-12): do NOT
+// use 16-byte but 4-byte-aligned vector types (uchar4) for remote-view
+// loads — they are served from a non-snooped cache and return STALE data at
+// fake "local speed" rates, even after the producer rewrote the source.
+// Naturally aligned types (uint, uint4, ulong2, float) are coherent
+// (remote-view-check tool + docs/metal/gotchas.md). 4-byte scalar is used
+// here because decode-size tensors are latency-bound anyway. Grid must be
+// dispatched at exactly bytes/4 threads (no bounds constant: on this driver
+// the constant binding misbehaves across a pipeline-switch loop).
+kernel void pullCopy(const device uint *src [[buffer(0)]],
+                     device uint *dst [[buffer(1)]],
+                     uint idx [[thread_position_in_grid]]) {
+    dst[idx] = src[idx];
+}
+// Fused reduce: reads the remote views directly (read-only) and writes
+// only the sum — skips the local VRAM copy entirely.
+kernel void fusedSum(device const float *own [[buffer(0)]],
+                     device const float *v0 [[buffer(1)]],
+                     device const float *v1 [[buffer(2)]],
+                     device const float *v2 [[buffer(3)]],
+                     device float *out [[buffer(4)]],
+                     constant uint &np [[buffer(5)]],
+                     constant uint &n [[buffer(6)]],
+                     uint idx [[thread_position_in_grid]]) {
+    if (idx < n) {
+        float s = own[idx] + v0[idx];
+        if (np > 1) s += v1[idx];
+        if (np > 2) s += v2[idx];
+        out[idx] = s;
+    }
+}
 """
 
 final class RankCtx {
@@ -141,6 +184,8 @@ final class RankCtx {
     let queue: MTLCommandQueue
     let producePL: MTLComputePipelineState
     let sumPL: MTLComputePipelineState
+    let pullPL: MTLComputePipelineState
+    let fusedPL: MTLComputePipelineState
     let partial: MTLBuffer      // this rank's partial tensor (private VRAM)
     let pulls: MTLBuffer        // peerCount slots of hidden floats
     let sumOut: MTLBuffer       // private VRAM (verify copies out to shared)
@@ -154,6 +199,10 @@ final class RankCtx {
               let sf = lib.makeFunction(name: "sumN"),
               let pp = try? dev.makeComputePipelineState(function: pf),
               let sp = try? dev.makeComputePipelineState(function: sf),
+              let cf = lib.makeFunction(name: "pullCopy"),
+              let cp = try? dev.makeComputePipelineState(function: cf),
+              let fsf = lib.makeFunction(name: "fusedSum"),
+              let fp = try? dev.makeComputePipelineState(function: fsf),
               let partial = dev.makeBuffer(length: bytes, options: .storageModePrivate),
               let pulls = dev.makeBuffer(length: bytes * peerCount, options: .storageModePrivate),
               let sumOut = dev.makeBuffer(length: bytes, options: .storageModePrivate)
@@ -161,6 +210,7 @@ final class RankCtx {
         self.index = metalIndex; self.rank = rank
         self.device = dev; self.queue = q
         self.producePL = pp; self.sumPL = sp
+        self.pullPL = cp; self.fusedPL = fp
         self.partial = partial; self.pulls = pulls; self.sumOut = sumOut
     }
 
@@ -238,9 +288,41 @@ func encodeReduceCB(_ rc: RankCtx, eventSync: Bool, chainWait: Int, signalDone: 
             cb.encodeWaitForEvent(reduceDone[chainWait], value: reduceSeq)
         }
     }
-    // Pull each peer partial into local VRAM: blit copy, remote view as
-    // source (the measured-fast path; remote views are read-only).
-    if let enc = cb.makeBlitCommandEncoder() {
+    // Pull each peer partial into local VRAM (remote views are read-only,
+    // so the pull direction is mandatory).
+    if opts.pull == "fused" {
+        // Single kernel: reads remote views directly, writes the sum.
+        if let enc = cb.makeComputeCommandEncoder() {
+            enc.setComputePipelineState(rc.fusedPL)
+            enc.setBuffer(rc.partial, offset: 0, index: 0)
+            enc.setBuffer(rc.views[0], offset: 0, index: 1)
+            enc.setBuffer(peerCount > 1 ? rc.views[1] : rc.partial, offset: 0, index: 2)
+            enc.setBuffer(peerCount > 2 ? rc.views[2] : rc.partial, offset: 0, index: 3)
+            enc.setBuffer(rc.sumOut, offset: 0, index: 4)
+            let np = UInt32(peerCount)
+            let n = UInt32(opts.hidden)
+            withUnsafeBytes(of: np) { enc.setBytes($0.baseAddress!, length: 4, index: 5) }
+            withUnsafeBytes(of: n) { enc.setBytes($0.baseAddress!, length: 4, index: 6) }
+            rc.grid(rc.fusedPL, encoder: enc, count: opts.hidden)
+            enc.endEncoding()
+        }
+        if signalDone {
+            cb.encodeSignalEvent(reduceDone[rc.rank], value: reduceSeq)
+        }
+        return cb
+    }
+    if opts.pull == "kernel" {
+        let n4 = tensorBytes / 4
+        for slot in 0..<peerCount {
+            guard let enc = cb.makeComputeCommandEncoder() else { break }
+            enc.setComputePipelineState(rc.pullPL)
+            enc.setBuffer(rc.views[slot], offset: 0, index: 0)
+            enc.setBuffer(rc.pulls, offset: tensorBytes * slot, index: 1)
+            enc.dispatchThreads(MTLSize(width: n4, height: 1, depth: 1),
+                                threadsPerThreadgroup: MTLSize(width: 256, height: 1, depth: 1))
+            enc.endEncoding()
+        }
+    } else if let enc = cb.makeBlitCommandEncoder() {
         for slot in 0..<peerCount {
             enc.copy(from: rc.views[slot], sourceOffset: 0,
                      to: rc.pulls, destinationOffset: tensorBytes * slot,
@@ -295,6 +377,7 @@ func correctnessGate() {
     for rc in ranks { cbs[rc.rank * 2 + 1].commit() }
     for cb in cbs { cb.waitUntilCompleted() }
     let expect = Float((1...ranks.count).reduce(0, +))
+    var observed: [String] = []
     for rc in ranks {
         guard let shared = rc.device.makeBuffer(length: tensorBytes, options: .storageModeShared),
               let cb = rc.queue.makeCommandBuffer(),
@@ -303,9 +386,12 @@ func correctnessGate() {
         enc.copy(from: rc.sumOut, sourceOffset: 0, to: shared, destinationOffset: 0, size: tensorBytes)
         enc.endEncoding(); cb.commit(); cb.waitUntilCompleted()
         let p = shared.contents().bindMemory(to: Float.self, capacity: opts.hidden)
-        for k in stride(from: 0, to: opts.hidden, by: 251) where p[k] != expect { return }
+        var ok = true
+        for k in stride(from: 0, to: opts.hidden, by: 251) where p[k] != expect { ok = false; break }
+        if !ok { observed.append("rank\(rc.rank) saw \(p[0])/\(p[opts.hidden / 2])/\(p[opts.hidden - 1])") }
     }
-    verifyPassed = true
+    if observed.isEmpty { verifyPassed = true }
+    else { notes.append("gate observed (expect \(expect)): \(observed.joined(separator: "; "))") }
 }
 
 // MARK: - Runs
@@ -398,7 +484,7 @@ func record(_ mode: String, perToken: [Double]) {
     let usPerReduce = med / Double(reducesPerToken)
     let gbps = bytesPerTokenPerDevice / (med / 1e6) / 1e9
     results.append([
-        "kind": "tp-sim", "sync": mode, "hidden": opts.hidden,
+        "kind": "tp-sim", "sync": mode, "pull": opts.pull, "hidden": opts.hidden,
         "layers": opts.layers, "reducesPerLayer": opts.reduces,
         "medianUsPerToken": (med * 100).rounded() / 100,
         "usPerReduce": (usPerReduce * 100).rounded() / 100,
@@ -438,14 +524,14 @@ if opts.sync != "event" {
 
 if wantJSON {
     let report: [String: Any] = [
-        "tool": "tp-sim", "version": 1,
+        "tool": "tp-sim", "version": 2,
         "devices": zip(opts.devices, ranks).map { [
             "index": $0.0, "name": allDevices[$0.0].name,
             "peerGroupIDHex": String(format: "0x%016llx", peerGroup),
         ] as [String: Any] },
         "options": ["hidden": opts.hidden, "layers": opts.layers,
                     "reducesPerLayer": opts.reduces, "tokens": opts.tokens,
-                    "sync": opts.sync],
+                    "sync": opts.sync, "pull": opts.pull],
         "verifyPassed": verifyPassed,
         "results": results, "notes": notes,
     ]

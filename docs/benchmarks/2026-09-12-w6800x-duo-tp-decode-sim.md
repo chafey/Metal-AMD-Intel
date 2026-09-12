@@ -177,3 +177,33 @@ skipped by default rather than risking a wedge during a benchmark sweep.
 Related: [copy paths](2026-09-11-w6800x-duo-copy-paths.md) (single-pull
 37 GB/s plateau and 54–61 µs latency floor that these fixed costs sit
 on), [p2p matrix](2026-09-11-w6800x-duo-p2p-peer-group-matrix.md).
+
+## Follow-up (same day): kernel / fused pull modes — no change, and why
+
+`tp-sim` gained `--pull blit|kernel|fused` to test whether moving the
+fabric crossing from the copy engine to compute units (the toshllm
+`ggml_metal_cpy_xdev_peer()` direction, or even a fully-fused
+read-remote-and-sum kernel) speeds the decode reduce. Results at
+hidden=8192, default schedule (`raw/` per-run JSON via `--json`; run
+`tools/.build/release/tp-sim --pull <mode>`):
+
+| `--pull` | load type | gate | chain µs/reduce | event µs/reduce |
+|---|---|---|---|---|
+| blit | copy engine | PASS | 748.2 (baseline table) | 3136.4 |
+| kernel | `uint` (aligned) | PASS | 624.8 | 3257.2 |
+| fused | `float` direct remote reads, no staging copy | PASS | 629.5 | 3265.3 |
+
+All three are the same within run-to-run driver noise: the decode
+all-reduce is **latency-bound** at 32 KiB, so the pull mechanism is
+irrelevant — the scheduling lever (`chain` vs `event`) dominates by ~5×
+and remains the only software knob that matters here.
+
+A detour produced a lasting correctness rule: the first kernel-pull
+implementation used `uchar4` loads and **failed the correctness gate**
+(peer slots past the first vector read as never-written). Root cause:
+misaligned 16-byte loads of remote views are served stale from a
+non-snooped cache — the same bug that invalidated the first version of
+the [ceiling report](2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md).
+The gate caught it because unlike pure bandwidth tests, it verifies
+data. See [gotchas](../metal/gotchas.md) and
+[`remote-view-check`](../../tools/remote-view-check/).

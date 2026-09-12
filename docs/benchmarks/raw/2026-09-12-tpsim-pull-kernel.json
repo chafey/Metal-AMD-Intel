@@ -1,0 +1,82 @@
+{
+  "devices" : [
+    {
+      "index" : 1,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    },
+    {
+      "index" : 2,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    },
+    {
+      "index" : 3,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    },
+    {
+      "index" : 4,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    }
+  ],
+  "notes" : [
+
+  ],
+  "options" : {
+    "hidden" : 8192,
+    "layers" : 80,
+    "pull" : "kernel",
+    "reducesPerLayer" : 2,
+    "sync" : "both",
+    "tokens" : 8
+  },
+  "results" : [
+    {
+      "bytesPerTokenPerDevice" : 15728640,
+      "commBoundTokensPerSecond" : 1.8999999999999999,
+      "gbytesPerSecond" : 0.029999999999999999,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 516516.94,
+      "pull" : "kernel",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "event",
+      "usPerReduce" : 3228.23
+    },
+    {
+      "bytesPerTokenPerDevice" : 15728640,
+      "commBoundTokensPerSecond" : 9.9000000000000004,
+      "gbytesPerSecond" : 0.16,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 100742.39,
+      "pull" : "kernel",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "chain",
+      "usPerReduce" : 629.63999999999999
+    },
+    {
+      "bytesPerTokenPerDevice" : 15728640,
+      "commBoundTokensPerSecond" : 2.1000000000000001,
+      "gbytesPerSecond" : 0.029999999999999999,
+      "hidden" : 8192,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 480075.09000000003,
+      "pull" : "kernel",
+      "reducesPerLayer" : 2,
+      "samples" : 8,
+      "sync" : "cpu",
+      "usPerReduce" : 3000.4699999999998
+    }
+  ],
+  "tool" : "tp-sim",
+  "verifyPassed" : true,
+  "version" : 2
+}

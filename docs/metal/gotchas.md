@@ -16,7 +16,40 @@ symptom, affected configuration, workaround, and OS/driver version observed.
 
 ## Known issues
 
-### Host writes to `MTLStorageModePrivate` buffer contents stall submissions
+### ⚠️ Misaligned vector loads of remote buffer views return STALE data at fake speed
+- **Affects:** 2× W6800X Duo peer group, macOS 26.6.2, AMDRadeonX6000 7.0.1 —
+  compute loads through `newRemoteBufferViewForDevice:` buffers
+- **Symptom:** loads of a 16-byte **but 4-byte-aligned** vector type
+  (`uchar4`) from a remote view are served from a non-snooped cache:
+  they return data from an initial freshness window plus stale junk
+  beyond it, at local-cache speeds (~111–113 GB/s instead of the true
+  ~27 GB/s), and **the stale data does not update even after the
+  producer GPU rewrites the source and its command buffer completes**.
+  Reads of naturally aligned types (`uint`, `ulong`, `float`, `uint4`,
+  `ulong2`, `float4`) are coherent at every size and rewrite round
+  tested. `blit` copies are always correct. Repeated reads of an
+  unchanged source measured at true speed with aligned loads (up to
+  1 GiB), so always rewriting the source between timed iterations (as
+  `remote-view-check` does) remains the safe benchmarking discipline —
+  and **verify contents**, since a bandwidth test that never checks
+  data cannot see this bug (this is how a bogus
+  "113 GB/s kernel path / 330 GB/s aggregate" claim survived a whole
+  benchmark report before `remote-view-check` caught it).
+- **Repro:** `tools/.build/release/remote-view-check` — the
+  `uchar4 16B*` row is an intentional failure (stale mid/tail at
+  111–113 GB/s); all aligned widths print 0 bad at 22–29 GB/s.
+  Raw: `docs/benchmarks/raw/2026-09-12-remote-view-check.txt`
+- **Workaround:** in any kernel touching a remote view, use naturally
+  aligned element types (or 4-byte scalars); keep `remote-view-check`
+  green; prefer blit copies for bulk transfers. Also avoid grid-stride
+  remote-copy loops in general (`threadgroups_per_grid` is a threadgroup
+  *count*, not a thread count — using it as the loop stride is a
+  classic 256× slowdown trap).
+- **Status:** workaround-only; freshness-window size is unpredictable
+  (whole 16 MiB buffers stayed fresh; a 32 KiB tensor was fresh only for
+  its first vector; 1 GiB buffers went stale past the first 1 MiB)
+
+### Host writes to `MTLStorageModePrivate` buffer contents stalls submissions
 - **Affects:** W6800X Duo, macOS 26.6.2, AMDRadeonX6000 7.0.1
 - **Symptom:** `buffer.contents().copyMemory(...)` on a private-storage
   buffer appears to succeed, but the next command-buffer completion hangs
@@ -161,11 +194,14 @@ symptom, affected configuration, workaround, and OS/driver version observed.
   simultaneous bulk flows aggregate throughput *falls* (~90 → ~51–55 GB/s
   at 8) with per-stream shares unfair (up to 3× spread) and swapping
   winners run-to-run. Scheduling is driver-side, not link-topology-driven.
-  Kernel-driven pulls dodge the plateau entirely (~330 GB/s aggregate —
-  see [ceiling report](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md)),
-  but both engines share one rule: **two concurrent flows on the same
-  link collapse it to ~46 GB/s combined** — serialise per-link egress
-  in the application.
+  Corrected kernel reads (aligned loads) do not dodge anything either —
+  they hit the same per-flow rates; the plateau story is "~24–29 GB/s
+  per flow, additive across disjoint pairs, arbitrates unfairly above 4
+  flows" (see [ceiling report
+  v2](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md)).
+  Both engines share one rule: **two concurrent flows on the same link
+  collapse below a single flow's rate** — serialise per-link egress in
+  the application.
 - **Repro:** `tools/.build/release/a2a-bw` (phases B3 vs C are the
   concurrency-matched comparison; `--engine kernel` for the fabric path)
 - **Workaround:** kernel copies for bulk IF traffic; keep ≤1 in-flight

@@ -6,24 +6,28 @@ working set may live on a remote GPU partition.
 ## Rules of thumb
 
 1. **Place, then touch.** Allocate a buffer on the partition that will read
-   it most. *Supported:* even the best remote route (single kernel pull)
-   runs ~113 GB/s with no cache benefit and ~90 under full-duplex load,
-   against device-local bandwidth in the hundreds of GB/s; the blit route
-   is worse still at ~27–30 GB/s vs ~67–74 GB/s local blits
+   it most. *Supported:* every remote route runs ~24–29 GB/s per flow
+   (blit ~24–38, aligned kernel loads ~27–29) against device-local
+   bandwidth in the hundreds of GB/s (local blits ~67–74), so remote
+   traffic is an order of magnitude off local even in the best case
    ([p2p matrix](../benchmarks/2026-09-11-w6800x-duo-p2p-peer-group-matrix.md),
    [copy-paths](../benchmarks/2026-09-11-w6800x-duo-copy-paths.md),
-   [ceiling](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md)).
-2. **Copy with kernels, not blits — and one flow per link.** Explicit bulk
-   copies beat remote paging, but the copy *engine* matters enormously.
-   *Supported:* kernel-driven remote pulls reach ~90 GB/s per direction
-   on a link and ~330 GB/s hive-wide across four independent links,
-   while the blit path plateaus at ~90 GB/s hive-wide under any schedule;
-   two concurrent flows sharing one link collapse it to ~46 GB/s
-   combined, and a global in-flight cap of 4 beats full concurrency
-   (228 vs 185 GB/s).
-   [ceiling report](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md).
-   Prefer ≥512 MiB per flow (fixed per-op costs eat 15–30% of a 64 MiB
-   kernel pull); small ops additionally pay a per-in-flight-op penalty
+   [ceiling v2](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md)).
+2. **One flow per link; kernels optional.** Explicit bulk copies beat
+   remote paging. Kernel-driven pulls are *not* faster than blit — the
+   corrected measurements put both at the same per-flow rate; choose
+   kernel pulls only when you need to fuse the copy into real work, and
+   then load remote views with **naturally aligned types only** (a
+   misaligned 16-byte type like `uchar4` silently returns stale data —
+   see [gotchas](gotchas.md) and validate with
+   [`remote-view-check`](../../tools/remote-view-check/)).
+   *Supported:* disjoint GPU pairs scale additively (one pair alone
+   ~46–48 GB/s full-duplex; two disjoint pairs ~93–96 combined), but two
+   concurrent flows sharing one link collapse below a single flow's rate
+   (8 cross streams: 50.8 blit / 73.6–85.1 kernel vs ~93 at one
+   flow/link), and ≥5 simultaneous consumers get unstable shares.
+   [ceiling report v2](../benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md).
+   Small ops additionally pay a per-in-flight-op penalty
    ([TP-decode sim](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md)).
 3. **One partition per render graph.** Keep all attachments of a render pass
    local to a single partition. *Not yet measured* — the benchmarks here

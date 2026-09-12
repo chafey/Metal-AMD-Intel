@@ -26,10 +26,24 @@ rank's all-reduce result must equal Σ(1…N). This catches drivers where
 cross-device event ordering "works" but does not actually make peer
 writes visible.
 
+Three pull styles are selectable (`--pull`):
+
+- `blit` (default) — copy-engine pull into local VRAM, then `sumN`.
+- `kernel` — compute-unit pull into local VRAM (full-grid `uint` loads),
+  then `sumN`.
+- `fused` — one kernel reads the remote views directly and writes only
+  the sum (no local staging copy).
+
+All three pass the correctness gate and all three cost the **same** per
+reduce (~625 µs chain, ~3.3 ms event at hidden=8192): at decode tensor
+sizes the reduce is latency-bound, so the pull path does not matter.
+Kernel/fused loads MUST use naturally aligned types — `uchar4` loads of
+remote views return stale data ([gotchas](../../docs/metal/gotchas.md)).
+
 ```
 usage: tp-sim [--devices 1,2,3,4] [--hidden N | --hidden-bytes B]
               [--layers L] [--reduces R] [--tokens T]
-              [--sync cpu|event|chain|both] [--json]
+              [--sync cpu|event|chain|both] [--pull blit|kernel|fused] [--json]
 ```
 
 Timed region = encode + commit + GPU completion. Command buffers are

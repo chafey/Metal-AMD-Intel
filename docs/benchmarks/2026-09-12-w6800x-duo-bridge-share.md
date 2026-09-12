@@ -166,14 +166,18 @@ The B-vs-C gap tracks stream *count*, not wiring.
 
 ## Conclusions
 
-The original question ("shared or per-pair?") is answered **for the blit
-path: shared** — the copy-engine route behaves as one ~90 GB/s pool.
-A later second follow-up (see the date note above) showed the fabric
-itself is **not** the limit: kernel-driven pulls reach ~90 GB/s *per
-direction per link* and ~330 GB/s hive-wide, so "shared" here describes
-the driver/copy-engine, not the Infinity Fabric. The uniform-fabric
-result stands either way: the on-module Infinity Fabric Link jumper
-shows no capacity separate from the bridge at equal structure.
+The original question ("shared or per-pair?") was answered here as
+"shared ~90 GB/s pool" — a later follow-up
+([ceiling report v2](2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md))
+refined that: the ~90 GB/s figure is the **sum of four links each
+carrying one ~24 GB/s blit flow**, and disjoint pairs scale additively
+(one pair alone gets the same per-pair rate as two pairs concurrently),
+so it is a per-flow cap plus driver arbitration above 4 flows, not a
+shared 90 GB/s pipe. (A brief intermediate claim that kernel pulls reach
+330 GB/s was itself retracted — misaligned `uchar4` loads, see
+[gotchas](../metal/gotchas.md).) The uniform-fabric result stands
+either way: the on-module Infinity Fabric Link jumper shows no capacity
+separate from the bridge at equal structure.
 Doc links corrected in [infinity-fabric.md](../hardware/infinity-fabric.md)
 and [mpx-cards.md](../hardware/mpx-cards.md).
 Tool: [a2a-bw README](../../tools/a2a-bw/README.md).

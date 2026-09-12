@@ -33,13 +33,26 @@ usage: a2a-bw [--devices 1,2,3,4] [--modules 1,2|3,4]
 comma-separated substrings; `--max-concurrent N` caps in-flight streams
 with a semaphore in every concurrent phase.
 
-Result on 2× W6800X Duo + bridge: the answer depends on the copy engine.
-**Blit path:** one shared ~90 GB/s pool, linear to 4 streams then
-collapsing at 8 — the ceiling is the copy engine, not the fabric.
-**Kernel path:** ~113 GB/s on a single stream, ~90 GB/s *per direction*
-on a full-duplex pair (Apple's 84 GB/s rating, honored), 330 GB/s
-aggregate across four independent links; two concurrent flows sharing one
-link collapse it to ~46 GB/s, so serialise per-link egress (a global
-in-flight cap of 4 already beats full concurrency: 228 vs 185). Full
-analysis: [ceiling report](../../docs/benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md)
+Result on 2× W6800X Duo + bridge (both engines, corrected measurements):
+the per-**flow** ceiling is ~24 GB/s (blit) / ~29 GB/s (kernel);
+disjoint GPU pairs scale additively (one full-duplex pair ~46–48 GB/s
+alone, two disjoint pairs ~93–96 combined — there is no shared 90 GB/s
+pool; "~90" is just 4 links × one flow). Two concurrent flows sharing
+one link collapse below a single flow's rate, and ≥5 simultaneous
+consumers get unstable, unfair shares; an app-side in-flight cap
+(`--max-concurrent 4`) raises the 8-stream aggregate (~85→135 at
+64 MiB kernel) but not the per-stream floor.
+
+> **Engine warning (2026-09-12):** the kernel engine historically used
+> `uchar4` loads. Misaligned 16-byte loads of remote views are served
+> *stale* from a non-snooped cache (~113 fake GB/s) — every pre-fix
+> `--engine kernel` number in this repo is invalid; see
+> [gotchas](../../docs/metal/gotchas.md) and
+> [`remote-view-check`](../remote-view-check/). The engine now uses
+> `uint4` (16-byte aligned), which `remote-view-check` certifies as
+> coherent. Note the kernel engine does **not** rewrite its source
+> between iterations.
+
+Full analysis:
+[ceiling report v2](../../docs/benchmarks/2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md)
 and the blit-path [bridge-share report](../../docs/benchmarks/2026-09-12-w6800x-duo-bridge-share.md).

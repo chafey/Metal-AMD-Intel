@@ -164,9 +164,13 @@ var phaseReports: [[String: Any]] = []
 // Kernel engine: one trivially compiling pull kernel per consumer device
 // (kernel-driven remote reads are a different driver submission path than
 // the blit engine; used to tell fabric limits from blit-path scheduling).
+// MUST use a naturally 16-byte-aligned vector type: `uchar4` is 16 bytes but
+// only 4-byte aligned, and misaligned 16-byte loads of remote views are
+// served from a non-snooped cache — stale data at fake "113 GB/s" speeds
+// (remote-view-check + 2026-09-12 dv series; see docs/metal/gotchas.md).
 let pullSource = """
-kernel void pull(const device uchar4 *src [[buffer(0)]],
-                 device uchar4 *dst [[buffer(1)]],
+kernel void pull(const device uint4 *src [[buffer(0)]],
+                 device uint4 *dst [[buffer(1)]],
                  uint tid [[thread_position_in_grid]]) {
     dst[tid] = src[tid];
 }

@@ -1,0 +1,27 @@
+producer=dev1 consumer=dev2
+uint   4B r1: 22.8 GB/s  bad(head/mid/tail) head:0 mid:0 tail:0
+uint   4B r2: 28.7 GB/s  bad(head/mid/tail) head:0 mid:0 tail:0
+uint   4B r3: 28.7 GB/s  bad(head/mid/tail) head:0 mid:0 tail:0
+ulong  8B r1: 28.8 GB/s  bad(head/mid/tail) head:0 mid:0 tail:0
+ulong  8B r2: 28.8 GB/s  bad(head/mid/tail) head:0 mid:0 tail:0
+ulong  8B r3: 28.8 GB/s  bad(head/mid/tail) head:0 mid:0 tail:0
+ulong2 16B r1: 29.4 GB/s  bad(head/mid/tail) head:0 mid:0 tail:0
+ulong2 16B r2: 29.3 GB/s  bad(head/mid/tail) head:0 mid:0 tail:0
+ulong2 16B r3: 29.4 GB/s  bad(head/mid/tail) head:0 mid:0 tail:0
+uchar4 16B* r1: 111.7 GB/s  bad(head/mid/tail) head:0 mid:1045 tail:1045
+uchar4 16B* r2: 112.4 GB/s  bad(head/mid/tail) head:0 mid:1045 tail:1045
+uchar4 16B* r3: 113.1 GB/s  bad(head/mid/tail) head:0 mid:1045 tail:1045
+--- 16 MiB full-buffer verification ---
+uint   4B r1: OK (0 bad words)
+uint   4B r2: OK (0 bad words)
+uint   4B r3: OK (0 bad words)
+ulong  8B r1: OK (0 bad words)
+ulong  8B r2: OK (0 bad words)
+ulong  8B r3: OK (0 bad words)
+ulong2 16B r1: OK (0 bad words)
+ulong2 16B r2: OK (0 bad words)
+ulong2 16B r3: OK (0 bad words)
+uchar4 16B* r1: OK (0 bad words)
+uchar4 16B* r2: OK (0 bad words)
+uchar4 16B* r3: OK (0 bad words)
+done

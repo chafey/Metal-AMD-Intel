@@ -37,5 +37,9 @@ let package = Package(
             name: "a2a-bw",
             path: "Sources/a2a-bw"
         ),
+        .executableTarget(
+            name: "remote-view-check",
+            path: "Sources/remote-view-check"
+        ),
     ]
 )

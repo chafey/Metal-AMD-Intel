@@ -11,7 +11,7 @@ to the tool + exact command and the raw JSON in [raw/](raw/).
 | 2026-09-11 | [2× W6800X Duo — peer-group P2P pull matrix (all 6 die pairs)](2026-09-11-w6800x-duo-p2p-peer-group-matrix.md) | `if-bench` (default p2p route) |
 | 2026-09-12 | [2× W6800X Duo — llama.cpp-style TP-4 decode all-reduce simulation](2026-09-12-w6800x-duo-tp-decode-sim.md) | `tp-sim`, `pull-contention` |
 | 2026-09-12 | [2× W6800X Duo — is bridge bandwidth shared across simultaneous flows?](2026-09-12-w6800x-duo-bridge-share.md) | `a2a-bw` |
-| 2026-09-12 | [2× W6800X Duo — the ~90 GB/s ceiling is the blit engine, not the fabric](2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md) | `a2a-bw` v2 (`--engine kernel`, `--max-concurrent`) |
+| 2026-09-12 | [2× W6800X Duo — kernel vs blit ceiling (v2, corrected; v1 retracted for the `uchar4` misalignment bug)](2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md) | `a2a-bw` v2 (`--engine kernel`, `--max-concurrent`), `remote-view-check` |
 
 Captures are scoped to the two W6800X Duo modules; a third GPU (RX 6900
 XT, display) is present in the machine listings but not measured. All

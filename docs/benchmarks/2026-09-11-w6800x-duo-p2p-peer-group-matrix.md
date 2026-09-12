@@ -82,6 +82,10 @@ Full-size curve (min–max GB/s across all six pairs, both directions):
 
 Compute-kernel pulls read the same remote views without the blitter; they
 run 1–3 GB/s below blit at ≥32 MiB and fall away sharply at small sizes.
+(2026-09-12 follow-up: this column used `uint4` — 16-byte aligned — and
+is valid; the alignment contract for remote-view loads is documented in
+[gotchas](../metal/gotchas.md). Kernel and blit per-flow ceilings are
+the same order, ~27–38 GB/s.)
 
 **Pull latency** (µs per one-way serialized pull, commit+wait each;
 median-of-sizes view of the sweep):
