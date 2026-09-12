@@ -1,0 +1,75 @@
+{
+  "devices" : [
+    {
+      "index" : 1,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    },
+    {
+      "index" : 2,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    },
+    {
+      "index" : 3,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    },
+    {
+      "index" : 4,
+      "name" : "AMD Radeon PRO W6800X Duo",
+      "peerGroupIDHex" : "0x4cf5577a51a24576"
+    }
+  ],
+  "notes" : [
+
+  ],
+  "options" : {
+    "allreduce" : "naive",
+    "computeUs" : 0,
+    "hidden" : 16384,
+    "layers" : 80,
+    "overlap" : "off",
+    "overlapChunks" : 2,
+    "pull" : "blit",
+    "reducesPerLayer" : 2,
+    "shardElements" : 4096,
+    "sync" : "chain",
+    "tokens" : 1
+  },
+  "results" : [
+    {
+      "allreduce" : "naive",
+      "bytesPerTokenPerDevice" : 31457280,
+      "commBoundTokensPerSecond" : 8.5,
+      "gbytesPerSecond" : 0.27000000000000002,
+      "hidden" : 16384,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 117500.60000000001,
+      "pull" : "blit",
+      "reducesPerLayer" : 2,
+      "samples" : 1,
+      "sync" : "chain",
+      "usPerReduce" : 734.38
+    },
+    {
+      "allreduce" : "naive",
+      "bytesPerTokenPerDevice" : 31457280,
+      "commBoundTokensPerSecond" : 2,
+      "gbytesPerSecond" : 0.059999999999999998,
+      "hidden" : 16384,
+      "kind" : "tp-sim",
+      "layers" : 80,
+      "medianUsPerToken" : 488575.73999999999,
+      "pull" : "blit",
+      "reducesPerLayer" : 2,
+      "samples" : 1,
+      "sync" : "cpu",
+      "usPerReduce" : 3053.5999999999999
+    }
+  ],
+  "tool" : "tp-sim",
+  "verifyPassed" : true,
+  "version" : 3
+}

@@ -45,15 +45,18 @@ working set may live on a remote GPU partition.
    slower than it in the winning serialized-`chain` mode (~2× in
    event/cpu mode) at decode sizes, and is still slower at 4 MiB tensors,
    because serialized remote reads cost a nearly size-independent charge
-   per op. Prefer fewer, fatter reduces (token batching), single fused
-   kernels, or TP=2 over schedule cleverness. **Exception (measured):**
+   per op. Prefer fewer, fatter reduces (token batching — measured:
+   batch 32 costs 1.3–1.6× per reduce for **20–24× less comm per
+   token**), single fused kernels, or TP=2 over schedule cleverness.
+   **Exception (measured):**
    pull-only recursive doubling over disjoint GPU pairs (2 ops and 2/3
    the bytes vs the naive 4-rank pull schedule) beats every naive
    variant at ≥ 1 MiB tensors — 1.34× at 1 MiB, 2.2× at 4 MiB — while
    still losing ~25–35% at 32 KiB decode sizes. Pick the schedule by
    tensor size; see the recursive-doubling follow-up.
    [TP-decode sim, 2-shot follow-up](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md#follow-up-2026-09-12-2-shot-all-reduce-reduce-scatter--all-gather-negative-result),
-   [recdbl follow-up](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md#follow-up-2026-09-12-recursive-doubling--the-crossover-2-shot-never-reached).
+   [recdbl follow-up](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md#follow-up-2026-09-12-recursive-doubling--the-crossover-2-shot-never-reached),
+   [batch-amortization follow-up](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md#follow-up-2026-09-12-batch-amortization--quantifying-the-one-big-decode-lever).
 5. **Don't bother with async compute/comm overlap engines.** A
    second-command-queue pipeline that pulls+sums partials chunk-by-chunk
    while the next chunk computes (`tp-sim --overlap on`) is never faster

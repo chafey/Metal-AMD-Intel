@@ -82,6 +82,14 @@ hide TP all-reduces on this hardware.
 See the overlap follow-up in the
 [results doc](../../docs/benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md).
 
+**`--tokens` is a sample-count knob, not a batch size.** Each token
+re-runs the per-token reduce sequence on 32 KiB tensors. Batched
+decode — one B×-larger tensor per reduce, which amortizes the
+size-independent per-op charge (20–24× less comm per token at B=32) —
+is modeled with `--hidden $((8192*B))`, not with `--tokens`. See the
+batch-amortization follow-up in the
+[results doc](../../docs/benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md).
+
 ```
 usage: tp-sim [--devices 1,2,3,4] [--hidden N | --hidden-bytes B]
               [--layers L] [--reduces R] [--tokens T]

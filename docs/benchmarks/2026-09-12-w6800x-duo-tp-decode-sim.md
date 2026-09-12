@@ -431,3 +431,59 @@ Repro: `tools/.build/release/tp-sim --overlap both --compute-us 500
 `swiftc -O tools/queue-control.swift -o /tmp/queue-control &&
 /tmp/queue-control` (uses device index 1, i.e. the first peer-group
 GPU; never device 0, the display card).
+
+## Follow-up (2026-09-12): batch amortization — quantifying the one big decode lever
+
+Everything above attacks the *schedule* of a fixed 160-reduce,
+batch-1 workload and finds the ~200 µs/op charge irreducible. But the
+charge is per **op**, not per byte: a decode *batch* of B tokens shares
+one all-reduce per reduce point instead of paying B of them. In
+tp-sim terms, batched decode = the same 160 reduces with B× larger
+tensors. (Note: `--tokens` is only a sample-count knob — it re-runs
+per-token reduces, it does **not** model batching; batching is
+`--hidden 8192×B`.)
+
+Naive+chain, hidden=8192×B, µs/reduce and derived **comm-bound
+ms/token = 160 × µs/reduce ÷ B**
+(`raw/2026-09-12-tpsim-batch-amort-{blit,fused}-b{1,2,4,8,16,32}.json`):
+
+| B | tensor | blit µs/red | blit ms/tok | fused µs/red | fused ms/tok |
+|---|---|---|---|---|---|
+| 1  | 32 KiB   | 704  | **112.7** | 590 | **94.5** |
+| 2  | 64 KiB   | 734  | 58.8  | 615 | 49.2 |
+| 4  | 128 KiB  | 766  | 30.6  | 640 | 25.6 |
+| 8  | 256 KiB  | 847  | 16.9  | 683 | 13.7 |
+| 16 | 512 KiB  | 955  | 9.5   | 781 | 7.8 |
+| 32 | 1 MiB    | 1162 | 5.8   | 952 | **4.8** |
+
+**Near-perfect amortization.** B=32 is 32× the bytes but only 1.6×
+(blit) / 1.3× (fused) the per-reduce cost: **20–24× lower comm per
+token.** At decode tensor sizes the transfer itself is noise next to
+the fixed charge, so batching is almost pure win — the one lever this
+driver leaves to decode, and it needs no schedule or engine cleverness
+at all.
+
+At B=32 the tensor reaches 1 MiB, where recdbl starts to matter:
+recdbl+cpu ties fused naive+chain exactly (952 µs/red both, and beats
+blit naive's 1162). At B=128 (4 MiB) recdbl+cpu runs 1270 µs/red =
+**1.6 ms/token**, now decisively ahead of both naive baselines:
+fused naive+chain 1902 (2.38 ms/token) and blit naive+chain 2517
+(3.15 ms/token) — recdbl wins by **1.5×** over fused naive once bytes
+fully dominate. Schedule crossover and batch amortization stack:
+large-batch decode should use recdbl+cpu.
+`raw/2026-09-12-tpsim-batch-amort-recdbl-b{32,128}.json`,
+`raw/2026-09-12-tpsim-batch-amort-fused-b128.json`.
+
+Caveats:
+
+- These are **comm-bound** figures: real tokens/token is bounded below
+  by compute, and batching multiplies per-GPU compute only if the
+  engine's GEMMs become compute-bound; at modest B the compute cost
+  grows much slower than comm shrinks, so the net moves with comm.
+- Batch-1 interactive serving sees **no** change — the benefit needs
+  B>1 real requests, or tricks that manufacture a batch: speculative
+  / lookahead decoding (draft B tokens per verify pass), parallel
+  sampling, or queueing.
+- Repro: `tp-sim --hidden $((8192*B)) --tokens 1 --sync chain
+  --pull fused` per B; `--allreduce recdbl --sync both` for the
+  B≥32 rows.
