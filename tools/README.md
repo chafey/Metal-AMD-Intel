@@ -17,6 +17,7 @@ driven from the root `Makefile`.
 | [pull-contention](pull-contention/) | Swift | Isolates the driver's concurrent remote-view pull penalty (per-op cost, sequential-vs-concurrent, fan-in hang) |
 | [remote-view-check](remote-view-check/) | Swift | Remote-view correctness gate: alignment/staleness matrix, rewrite-round freshness checks |
 | [probe-latency](probe-latency/) | Swift | Latency microbenchmarks for a host-RAM relay all-reduce (per-stage coherence costs, 4-rank relay loop with verify gate, cross-device buffer traps) |
+| [matvec-bench](matvec-bench/) | Swift | Batched weight-streaming (GEMV→GEMM): ms per GB of weights vs batch size on one die, with BW and FMA-ceiling asymptotes — the compute-side knee behind batch amortization |
 | [a2a-bw](a2a-bw/) | Swift | Simultaneous bulk pull matrix across a hive: whether bridge capacity is shared across flows (isolated / jumper-control / cross-card / all-to-all phases) |
 | [mtl-bench](mtl-bench/) | C++ | Command-encoder / dispatch microbenchmarks |
 | [iokit-dump](iokit-dump/) | C | Raw IORegistry dump of GPU/PCI families for triage |

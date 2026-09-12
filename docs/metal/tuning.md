@@ -47,7 +47,10 @@ working set may live on a remote GPU partition.
    because serialized remote reads cost a nearly size-independent charge
    per op. Prefer fewer, fatter reduces (token batching — measured:
    batch 32 costs 1.3–1.6× per reduce for **20–24× less comm per
-   token**), single fused kernels, or TP=2 over schedule cleverness.
+   token**; the compute side stays memory-bound to B ≈ 20 per die
+   (matvec-bench: FMA/BW ≈ 9.5 TFLOPS ÷ 480 GB/s), so batching wins
+   net up to at least B=32), single fused kernels, or TP=2 over
+   schedule cleverness.
    **Exception (measured):**
    pull-only recursive doubling over disjoint GPU pairs (2 ops and 2/3
    the bytes vs the naive 4-rank pull schedule) beats every naive

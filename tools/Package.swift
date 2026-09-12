@@ -46,6 +46,10 @@ let package = Package(
             dependencies: ["CFast"],
             path: "Sources/probe-latency"
         ),
+        .executableTarget(
+            name: "matvec-bench",
+            path: "Sources/matvec-bench"
+        ),
         .target(
             name: "CFast",
             path: "Sources/CFast"

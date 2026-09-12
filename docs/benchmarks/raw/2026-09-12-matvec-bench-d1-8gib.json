@@ -1,0 +1,66 @@
+{
+  "device" : {
+    "index" : 1,
+    "name" : "AMD Radeon PRO W6800X Duo"
+  },
+  "fmaIters" : 264084,
+  "fmaTFLOPS" : 9.9392738219276726,
+  "matrix" : {
+    "K" : 262144,
+    "kSlices" : 32,
+    "N" : 16384,
+    "weightBytes" : 8589934592
+  },
+  "progress" : [
+    "device 1 AMD Radeon PRO W6800X Duo: W=[262144 x 16384] fp16 = 8.59 GB, K-slab 8192 x 32",
+    "stream BW          : 460.5 GB\/s  (kernel busy 18.65 ms for 8.59 GB)",
+    "FMA ceiling        : 9.94 TFLOPS (fp32, register-only, 264084 iters, gpu busy 55.7 ms)",
+    "predicted knee B*  : 22  (FMA 9.9 TFLOPS \/ BW 460 GB\/s)"
+  ],
+  "rows" : [
+    {
+      "B" : 1,
+      "effGBs" : 307.94918593000432,
+      "msPerGB" : 3.2472889869151857,
+      "tflops" : 0.30794918593000431
+    },
+    {
+      "B" : 2,
+      "effGBs" : 307.02373399740372,
+      "msPerGB" : 3.2570771874217908,
+      "tflops" : 0.61404746799480747
+    },
+    {
+      "B" : 4,
+      "effGBs" : 300.36248649946987,
+      "msPerGB" : 3.3293105662240046,
+      "tflops" : 1.2014499459978794
+    },
+    {
+      "B" : 8,
+      "effGBs" : 301.25449751940533,
+      "msPerGB" : 3.31945251683947,
+      "tflops" : 2.4100359801552429
+    },
+    {
+      "B" : 16,
+      "effGBs" : 279.54237335581519,
+      "msPerGB" : 3.5772752015922511,
+      "tflops" : 4.4726779736930427
+    },
+    {
+      "B" : 32,
+      "effGBs" : 181.382355057979,
+      "msPerGB" : 5.5132154375233977,
+      "tflops" : 5.8042353618553282
+    },
+    {
+      "B" : 64,
+      "effGBs" : 55.610793677990102,
+      "msPerGB" : 17.982120625546557,
+      "tflops" : 3.5590907953913669
+    }
+  ],
+  "streamGBs" : 460.4875411291647,
+  "tool" : "matvec-bench"
+}

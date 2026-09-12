@@ -480,6 +480,8 @@ Caveats:
   by compute, and batching multiplies per-GPU compute only if the
   engine's GEMMs become compute-bound; at modest B the compute cost
   grows much slower than comm shrinks, so the net moves with comm.
+  (Measured later the same day — see the matvec-bench follow-up below:
+  confirmed, the compute knee is B ≈ 20 per die.)
 - Batch-1 interactive serving sees **no** change — the benefit needs
   B>1 real requests, or tricks that manufacture a batch: speculative
   / lookahead decoding (draft B tokens per verify pass), parallel
@@ -566,3 +568,51 @@ driver. All measurements in
 then `probe-latency --relay4 --device 1 --remote 4 --iters 100
 --noclinv` (also `--device 1 --remote 3` single-hop probes,
 `--size-kib`, `--crossbuf`, `--noclinv`).
+
+## Follow-up (2026-09-12): the compute-side knee — batching stays net-positive to B ≈ 32–64
+
+The batch-amortization table is comm-bound; the missing half was
+whether per-forward **compute** grows with B fast enough to cancel the
+comm savings. `matvec-bench` measures it on one die: a real dot-product
+kernel `D[N,B] += Σ_k W[K,N]·X[K,B]` (transformer GEMV → GEMM) on a
+2 GiB fp16 weight matrix, templated over batch B, bracketed by two
+asymptotes: pure weight streaming at **449–496 GB/s** and register-only
+fp32 FMA at **9.2–10.0 TFLOPS**. Their ratio predicts the knee at
+**B\* = FMA/BW ≈ 20 tokens**; the measured curve lands right on it.
+
+ms to stream 1 GB of weights, by batch B (die 1; die 3 within 5%,
+8 GiB matrix within 4% — `raw/2026-09-12-matvec-bench-d{1,3}.json`,
+`-d1-8gib.json`):
+
+| B | 1 | 2 | 4 | 8 | 16 | 32 | 64 |
+|---|---|---|---|---|---|---|---|
+| ms/GB | 3.13 | 3.09 | 3.24 | 3.43 | 3.82 | 5.66 | 18.7 |
+
+Flat to B=8 (+10% by B=16), knee at ~16–32, then a cliff — the B=64
+number is this deliberately naive kernel exhausting its accumulator
+registers (an untuned-kernel lower bound, not the hardware's; the FMA
+floor at B=64 would be ~6.7 ms/GB).
+
+### Does compute ever exceed comm? (worked, per forward = 160 reduces)
+
+Comm per forward from the batch table (fused chain × 160): B=1 **94 ms**,
+B=8 **109 ms**, B=32 **152 ms**. Compute per forward = (weights resident
+per die) × ms/GB(B):
+
+| weights/die | B=1 compute vs comm | B=8 | B=32 | verdict |
+|---|---|---|---|---|
+| 10 GB (70B Q4-class TP4, fits 16 GB/die) | 31 vs 94 | 34 vs 109 | 57 vs 152 | **comm-dominated at every B** |
+| 35 GB (70B fp16 TP4 — exceeds 16 GB/die; hypothetical) | 110 vs 94 | 120 vs 109 | 198 vs 152 | compute-dominated already at B=1 |
+
+So for any model volume that actually fits these dies, **comm is the
+dominant term in forward time at every practical batch size, all the way
+to B=32–64** — batch amortization attacks the top-line cost, not a
+secondary one, and the earlier "compute grows much slower" claim is now
+measured rather than inferred. Caveats: quantized kernels (Q4 dequant)
+carry extra ALU cost this fp16 matvec proxy doesn't model (it shifts
+the compute line up, weakening but not reversing the conclusion, since
+comm leads by 3–5× at 10 GB/die); and real engines tile GEMMs, so their
+compute line sits *below* this kernel's.
+
+Repro: `matvec-bench --device 1 --json` (see
+[tools/matvec-bench](../../tools/matvec-bench/README.md)).
