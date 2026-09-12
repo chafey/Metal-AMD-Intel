@@ -133,6 +133,15 @@ supporting captures live in git history.
   changing source content on every round in both directions — the
   visibility property a llama.cpp/toshllm-style remote-view protocol
   depends on, which those implementations do not themselves test.
+  - **Follow-up (2026-09-12):** that protocol's *scheduling* was since
+    measured with [`tp-sim`](2026-09-12-w6800x-duo-tp-decode-sim.md):
+    TP-4 all-reduces where every rank pulls concurrently (the
+    `ggml_metal_cpy_xdev_peer()` shape) cost ~3.1 ms each on this
+    driver, while serialising the pull phase across ranks costs ~0.75 ms
+    — the driver penalises concurrent remote-view pulls (see
+    [gotchas.md](../metal/gotchas.md)). Conclusions above are unaffected
+    (they measure isolated/pairwise transfers, which remain the
+    reference).
 - Docs updated as a result:
   [infinity-fabric.md](../hardware/infinity-fabric.md) (bandwidth table +
   findings), [gotchas.md](../metal/gotchas.md) (remote-view read-only

@@ -114,6 +114,45 @@ symptom, affected configuration, workaround, and OS/driver version observed.
   share one group id) inferred from IORegistry hive captures, not documented
   by Apple
 
+### Concurrent remote-view pulls are penalised; serialised pulls win
+- **Affects:** W6800X Duo (xGMI hive of 4), macOS 26.6.2, AMDRadeonX6000 7.0.1
+- **Symptom:** when every hive member performs remote-view pulls at the
+  same time, each in-flight remote op costs ~100–340 µs instead of the
+  ~56 µs an isolated pull pays: 12 concurrent 4 KiB pulls take 4.0 ms
+  while the same 12 ops done one at a time take 0.54 ms (~7×). A
+  llama.cpp/toshllm-style TP-4 all-reduce (every rank pulls every peer,
+  `ggml_metal_cpy_xdev_peer()` pattern) therefore costs ~3.1 ms per
+  all-reduce; serialising the pull phase across ranks with
+  `MTLSharedEvent` chains costs ~0.75 ms — and the cost is flat from
+  8 KiB to 64 KiB payloads (fixed-cost, not bandwidth)
+- **Repro:** `tools/.build/release/pull-contention --json` (all-to-all
+  concurrent vs sequential cases) or
+  `tools/.build/release/tp-sim --layers 4 --tokens 3` (event vs chain);
+  numbers in
+  [the TP-decode report](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md)
+- **Workaround:** schedule the pull phase sequentially across ranks
+  (event chain rank r → r+1); minimise the *number* of remote ops per
+  token (fewer/larger reduces, token batching, TP=2 per Duo module +
+  pipeline parallelism across modules) rather than trying to overlap them
+- **Status:** observed and quantified; mechanism (driver-side serialisation
+  vs hive-level arbiter) not established
+
+### Four consumers of one remote buffer hard-hang the driver
+- **Affects:** W6800X Duo (xGMI hive of 4), macOS 26.6.2, AMDRadeonX6000 7.0.1
+- **Symptom:** with N ≥ 4 GPUs concurrently blit-pulling remote views of
+  the *same* source buffer, completion never arrives — the waiting
+  process wedges indefinitely (not slow: hung; 100 s+ for work that
+  serially takes ms). Three concurrent readers are fine; pairwise
+  exchange (two consumers, two sources) is fine
+- **Repro:** `tools/.build/release/pull-contention --allow-fanin`
+  (deliberately gated behind that flag — it wedges until the process is
+  killed); the GPUs recover from the kill without a reboot
+- **Workaround:** never let the whole hive read one buffer simultaneously
+  — shard the source across consumers, or serialise readers with events
+  (the tp-sim `chain` schedule structurally avoids ≥4-reader fan-in)
+- **Status:** observed; file-worthy (looks like a driver deadlock in
+  remote-page-table handling), not yet filed
+
 ### (placeholder) Duo partition co-scheduling stalls
 - **Affects:** W6800X Duo, macOS 14.x — TODO: confirm
 - **Symptom:** TODO: describe observed stalls when both partitions run heavy

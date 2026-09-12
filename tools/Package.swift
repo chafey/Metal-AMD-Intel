@@ -24,5 +24,14 @@ let package = Package(
             dependencies: ["ToolSupport"],
             path: "Sources/if-bench"
         ),
+        .executableTarget(
+            name: "tp-sim",
+            dependencies: ["ToolSupport"],
+            path: "Sources/tp-sim"
+        ),
+        .executableTarget(
+            name: "pull-contention",
+            path: "Sources/pull-contention"
+        ),
     ]
 )

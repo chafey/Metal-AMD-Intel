@@ -87,9 +87,33 @@ Directions worth distinguishing:
 
 ## Programming model implications
 
-TODO: cover buffer placement, paging behavior when a kernel touches remote
-VRAM, explicit peer-copy strategies, and scheduling/co-residency rules across
-partitions. See [../metal/tuning.md](../metal/tuning.md).
+Measured on 2× W6800X Duo (AMDRadeonX6000 7.0.1), via `tp-sim` /
+`pull-contention` — see
+[the TP-decode simulation report](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md):
+
+- **Remote views are read-only on the consumer side.** Using a
+  `newRemoteBufferViewForDevice:` buffer as a blit *destination* aborts
+  in the driver; reads (kernel loads or blit-copy *source*) work. The
+  supported all-reduce idiom is therefore destination-side pull: copy
+  each peer's buffer through a view into local VRAM, sum locally.
+- **The driver penalises concurrent remote-view pulls.** Isolated pulls
+  cost ~56 µs and multi-source pulls are cheap when only one GPU pulls,
+  but with every hive member pulling simultaneously the cost inflates to
+  ~100–340 µs *per in-flight remote op* (12 concurrent ops: 4.0 ms vs
+  0.54 ms done sequentially). Multi-GPU sync patterns should *serialise*
+  the pull phase across ranks rather than maximise concurrency.
+- **Four or more consumers of the same remote buffer hang the driver**
+  (three are safe; the hanging case needs a process kill, GPUs recover).
+- **Keep remote-view command buffers committed promptly.** Thousands of
+  *uncommitted* remote-view CBs across the hive wedge the driver; encode
+  and commit per operation phase, as real inference engines already do.
+- **MTLSharedEvent chains work cross-device on this driver** (verified
+  with a correctness gate where every rank's summed result must match),
+  so GPU-side sync is viable; signal values must increase
+  monotonically.
+- Buffer placement and paging behaviour details (remote pages under
+  memory pressure, co-residency rules) remain TODO; see
+  [../metal/tuning.md](../metal/tuning.md).
 
 ## Related
 

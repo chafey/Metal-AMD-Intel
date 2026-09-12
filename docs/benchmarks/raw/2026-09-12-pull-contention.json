@@ -1,0 +1,77 @@
+{
+  "bytesPerRemoteOp" : 4096,
+  "devices" : [
+    {
+      "index" : 1,
+      "name" : "AMD Radeon PRO W6800X Duo"
+    },
+    {
+      "index" : 2,
+      "name" : "AMD Radeon PRO W6800X Duo"
+    },
+    {
+      "index" : 3,
+      "name" : "AMD Radeon PRO W6800X Duo"
+    },
+    {
+      "index" : 4,
+      "name" : "AMD Radeon PRO W6800X Duo"
+    }
+  ],
+  "iterations" : 11,
+  "peerGroupIDHex" : "0x4cf5577a51a24576",
+  "results" : [
+    {
+      "case" : "baseline encode (1 pull CB)",
+      "medianUs" : 6.2999999999999998,
+      "note" : ""
+    },
+    {
+      "case" : "baseline commit+wait (1 pull CB)",
+      "medianUs" : 55.899999999999999,
+      "note" : ""
+    },
+    {
+      "case" : "1 puller, 3 remote copies, 1 CB",
+      "medianUs" : 79,
+      "note" : ""
+    },
+    {
+      "case" : "pair exchange rank0<->rank1",
+      "medianUs" : 417.30000000000001,
+      "note" : ""
+    },
+    {
+      "case" : "pair exchange rank0<->rank2 (cross module)",
+      "medianUs" : 383.10000000000002,
+      "note" : ""
+    },
+    {
+      "case" : "all-to-all concurrent, 1 pull\/rank",
+      "medianUs" : 432.5,
+      "note" : ""
+    },
+    {
+      "case" : "all-to-all concurrent, 3 pulls\/rank",
+      "medianUs" : 4033,
+      "note" : ""
+    },
+    {
+      "case" : "all-to-all SEQUENTIAL (per-rank CBs one at a time)",
+      "medianUs" : 542.39999999999998,
+      "note" : ""
+    },
+    {
+      "case" : "all-to-all concurrent, commit-all then wait-all",
+      "medianUs" : 2160,
+      "note" : ""
+    },
+    {
+      "case" : "fan-in skipped",
+      "medianUs" : -1,
+      "note" : "4 consumers of one remote buffer HARD-HANG the driver (AMDRadeonX6000 7.0.1); use --allow-fanin to reproduce"
+    }
+  ],
+  "tool" : "pull-contention",
+  "version" : 1
+}
