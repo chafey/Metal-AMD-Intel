@@ -1,0 +1,41 @@
+IORegistry xGMI / Infinity Fabric capture — MacPro7,1, 2x W6800X Duo + Infinity Fabric Link bridge
+Captured: 2026-09-12, macOS 26.6.2, AMDRadeonX6000 7.0.1
+Command: ioreg -l -a   (full XML plist, 25 MB — filtered extract follows; also reproducible via
+         tools/iokit-dump: cmake --build then iokit-dump --key XGMI)
+
+Every GPU PCI node (IOPCIDevice, name GFX0) in the peer group exposes exactly these IF-related properties:
+  XGMI_Enabled (bool), XGMI_HiveID (8-byte data), XGMI_NodeID (8-byte data),
+  XGMI_HiveSize (int), XGMI_NodeIndex (int), XGMI_SGPU_FB (bool), InfinityFabricLinks (bool).
+NO per-link width / speed / generation property exists anywhere in the registry for either hop
+(searched all keys: no xgmi-width, no link-gen; the only Link* properties are Thunderbolt-port and
+PCIe capability/status properties).
+
+=== Per-node XGMI properties (2x W6800X Duo, bridge installed) ===
+IOPCIDevice [id=0x622]  XGMI_Enabled=True  XGMI_HiveID=<7645a2517a57f54c>  XGMI_NodeID=<eac9170705c70afa>
+    XGMI_HiveSize=4  XGMI_NodeIndex=1  XGMI_SGPU_FB=False  InfinityFabricLinks=True
+    model=AMD Radeon PRO W6800X Duo
+IOPCIDevice [id=0x626]  XGMI_Enabled=True  XGMI_HiveID=<7645a2517a57f54c>  XGMI_NodeID=<24c17aa7e5ef9be2>
+    XGMI_HiveSize=4  XGMI_NodeIndex=0  XGMI_SGPU_FB=False  InfinityFabricLinks=True
+    model=AMD Radeon PRO W6800X Duo
+IOPCIDevice [id=0x725]  XGMI_Enabled=True  XGMI_HiveID=<7645a2517a57f54c>  XGMI_NodeID=<2b14b964052da426>
+    XGMI_HiveSize=4  XGMI_NodeIndex=3  XGMI_SGPU_FB=False  InfinityFabricLinks=True
+    model=AMD Radeon PRO W6800X Duo
+IOPCIDevice [id=0x729]  XGMI_Enabled=True  XGMI_HiveID=<7645a2517a57f54c>  XGMI_NodeID=<16f19b94f34d90cb>
+    XGMI_HiveSize=4  XGMI_NodeIndex=2  XGMI_SGPU_FB=False  InfinityFabricLinks=True
+    model=AMD Radeon PRO W6800X Duo
+
+=== Metal device <-> XGMI node mapping ===
+MTLDevice.registryID names the AMDRadeonX6000_AMDNavi21GraphicsAccelerator node; walking up to the
+XGMI-carrying IOPCIDevice gives:
+  MTLCopyAllDevices[0] AMD Radeon RX 6900 XT  registryID=0xe17  -> no XGMI properties (not in the hive)
+  MTLCopyAllDevices[1] AMD Radeon PRO W6800X Duo  registryID=0xe19  -> IOPCIDevice 0x729  XGMI_NodeIndex=2
+  MTLCopyAllDevices[2] AMD Radeon PRO W6800X Duo  registryID=0xde2  -> IOPCIDevice 0x725  XGMI_NodeIndex=3
+  MTLCopyAllDevices[3] AMD Radeon PRO W6800X Duo  registryID=0xd99  -> IOPCIDevice 0x622  XGMI_NodeIndex=1
+  MTLCopyAllDevices[4] AMD Radeon PRO W6800X Duo  registryID=0xd9b  -> IOPCIDevice 0x626  XGMI_NodeIndex=0
+
+Notes:
+- All four hive members report the same 8-byte XGMI_HiveID <7645a2517a57f54c>; read as a
+  little-endian u64 that is 0x4cf5577a51a24576 — exactly the MTLDevice.peerGroupID value. So
+  peerGroupID == XGMI_HiveID (byte-reversed).
+- NodeIndex 0/1 are the two dies of one card (PCI 0x626/0x622), 2/3 of the other (0x729/0x725).
+- The 6900 XT (dev0) has none of the XGMI_* properties: single-node, no hive.

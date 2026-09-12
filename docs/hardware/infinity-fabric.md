@@ -30,9 +30,24 @@ for Metal programs.
   each other.
 - Apple rates the W6x-series IF link at 84 GB/s per direction
   ([tech specs](https://support.apple.com/en-ge/118461)), but gives no
-  figure for the external bridge connection on Duo modules. TODO: link
-  widths and generation per hop (on-module jumper vs cross-card bridge),
-  confirmed from IORegistry captures rather than datasheet guesses.
+  figure for the external bridge connection on Duo modules.
+- **What IORegistry does — and does not — say (resolved 2026-09-12).** A
+  full IORegistry capture of the live 2× W6800X Duo + bridge hive
+  ([raw extract](raw/2026-09-12-ioreg-xgmi.txt)) shows each GPU's
+  `IOPCIDevice` node publishes exactly seven Infinity-Fabric-related
+  properties: `InfinityFabricLinks` (bool), `XGMI_Enabled`, `XGMI_HiveID`
+  (8-byte data), `XGMI_NodeID` (8-byte data), `XGMI_HiveSize`,
+  `XGMI_NodeIndex`, `XGMI_SGPU_FB`. All four dies report
+  `XGMI_HiveSize = 4` under one common `XGMI_HiveID`; read little-endian,
+  that HiveID is exactly the `MTLDevice.peerGroupID` Metal reports.
+  **No per-hop link-width, link-speed, or generation property exists in
+  the registry** for the jumper hop or the bridge hop (the only `Link*`
+  keys in the whole registry are Thunderbolt-port and PCIe-link
+  properties). The driver exposes hive *membership* only; per-hop width
+  and generation are not observable from software on macOS and are not
+  published by Apple — treat the measured per-flow rates below as the
+  ground truth, and consider the old "settle link widths from
+  IORegistry" TODO closed (there is nothing to read).
 
 ## Bandwidth and latency
 

@@ -35,4 +35,8 @@ device. Numeric-looking properties stored as little-endian `Data` blobs
 (`device-id`, `vendor-id`, ...) are decoded to hex numbers.
 
 Complements `ioreg -alc` by filtering to GPU-relevant subtrees and decoding
-the numeric properties (device ids, link widths) into readable form.
+the numeric properties (device ids, PCIe link status) into readable form.
+Note: the AMD driver's Infinity Fabric properties (`XGMI_*`,
+`InfinityFabricLinks`) are hive-membership only — the registry contains no
+IF link width/speed properties to decode
+([findings](../../docs/hardware/infinity-fabric.md#architecture-overview)).

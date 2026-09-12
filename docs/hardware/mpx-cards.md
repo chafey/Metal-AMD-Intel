@@ -88,10 +88,15 @@ Open questions (capture with `iokit-dump`, measure with `if-bench`):
   jumpers fitted, no bridge) to document the unbridged hive shape — expected
   two independent hives of 2 (`XGMI_HiveSize = 2` each), to be confirmed
 - Link widths per hop (on-module Infinity Fabric Link jumper vs cross-card
-  Infinity Fabric Link bridge) and whether they differ — a full IORegistry
-  capture (`iokit-dump`, 2× W6800X Duo + bridge) exposes **no** per-link
-  width/generation keys, so this cannot be settled from the registry; only
-  datasheets or Apple documentation could, and neither is public
+  Infinity Fabric Link bridge) and whether they differ — **settled as far as
+  macOS allows** (2026-09-12): a full IORegistry capture
+  ([raw extract](raw/2026-09-12-ioreg-xgmi.txt),
+  [findings](infinity-fabric.md#architecture-overview)) exposes **no**
+  per-link width/generation keys — the driver publishes hive membership
+  only (`XGMI_HiveID/HiveSize/NodeID/NodeIndex` + `InfinityFabricLinks`).
+  This cannot be settled from the registry; only datasheets or Apple
+  documentation could, and neither is public — measured per-flow rates are
+  the ground truth
 - Bandwidth/latency of the cross-card IF hop vs intra-card hop vs the
   host path: **measured**. On peer pulls, cross-card ≈ on-module
   (single-stream ~27–30 GB/s either way,
