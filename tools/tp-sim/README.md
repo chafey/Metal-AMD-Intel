@@ -40,10 +40,30 @@ sizes the reduce is latency-bound, so the pull path does not matter.
 Kernel/fused loads MUST use naturally aligned types — `uchar4` loads of
 remote views return stale data ([gotchas](../../docs/metal/gotchas.md)).
 
+Two all-reduce schedules are selectable (`--allreduce naive|twoshot|both`):
+
+- `naive` (default) — the llama.cpp pattern: every rank pulls every
+  peer's **full** partial tensor: (N−1) tensor-bytes per reduce per rank.
+- `twoshot` — classic reduce-scatter + all-gather over N shards: each
+  rank pulls only its shard slice of each partial, then pulls the other
+  ranks' finished shards: 2(N−1)/N tensor-bytes (half at N=4) but **6
+  remote ops per rank per reduce instead of 3** plus an extra event-gated
+  phase (produce → RS → AG, three command buffers per rank).
+
+**`twoshot` measured slower than `naive` at every sync mode and pull
+engine (~5–6× in the winning `chain` mode, ~2× in `event`/`cpu`), and
+still slower at 1 MiB and 4 MiB tensors** — this
+driver charges per remote *op* (size-independent), not per byte, so
+halving bytes by doubling ops always loses. See the 2-shot follow-up in
+the [results doc](../../docs/benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md).
+The 2-shot machinery is nonetheless verified correct (gate PASS on all
+three pull engines, including slice-offset remote reads).
+
 ```
 usage: tp-sim [--devices 1,2,3,4] [--hidden N | --hidden-bytes B]
               [--layers L] [--reduces R] [--tokens T]
-              [--sync cpu|event|chain|both] [--pull blit|kernel|fused] [--json]
+              [--sync cpu|event|chain|both] [--pull blit|kernel|fused]
+              [--allreduce naive|twoshot|both] [--json]
 ```
 
 Timed region = encode + commit + GPU completion. Command buffers are

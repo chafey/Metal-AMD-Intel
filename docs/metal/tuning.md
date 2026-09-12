@@ -37,6 +37,17 @@ working set may live on a remote GPU partition.
 3. **One partition per render graph.** Keep all attachments of a render pass
    local to a single partition. *Not yet measured* — the benchmarks here
    cover blit/compute traffic only; treat as unvalidated intuition.
+4. **Count remote ops, not bytes, when choosing an all-reduce
+   schedule.** Bandwidth-optimal multi-GPU schedules that trade bytes for
+   op count (NCCL-style 2-shot reduce-scatter + all-gather, double binary
+   tree) are **losses** on this driver: `tp-sim --allreduce twoshot` moves
+   half the bytes of the naive llama.cpp pull schedule but measures ~5–6×
+   slower than it in the winning serialized-`chain` mode (~2× in
+   event/cpu mode) at decode sizes, and is still slower at 4 MiB tensors,
+   because serialized remote reads cost a nearly size-independent charge
+   per op. Prefer fewer, fatter reduces (token batching), single fused
+   kernels, or TP=2 over schedule cleverness.
+   [TP-decode sim, 2-shot follow-up](../benchmarks/2026-09-12-w6800x-duo-tp-decode-sim.md#follow-up-2026-09-12-2-shot-all-reduce-reduce-scatter--all-gather-negative-result).
 
 ## Topics
 

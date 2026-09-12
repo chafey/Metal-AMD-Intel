@@ -207,3 +207,81 @@ the [ceiling report](2026-09-12-w6800x-duo-kernel-vs-blit-ceiling.md).
 The gate caught it because unlike pure bandwidth tests, it verifies
 data. See [gotchas](../metal/gotchas.md) and
 [`remote-view-check`](../../tools/remote-view-check/).
+
+## Follow-up (2026-09-12): 2-shot all-reduce (reduce-scatter + all-gather) — negative result
+
+`tp-sim` gained `--allreduce naive|twoshot|both` to test the classic
+bandwidth-optimal all-reduce schedule: split the tensor into N shards;
+in the **reduce-scatter** phase rank *r* pulls only shard-*r* of each
+peer's partial and sums it; in the **all-gather** phase every rank pulls
+the other ranks' finished shards and assembles the full sum. Theory: it
+moves `2(N-1)/N` tensor-bytes per reduce across the fabric vs `(N-1)`
+for the naive pull — **half the traffic at N=4**, at the cost of 6
+remote ops per rank per reduce instead of 3, and one extra event-gated
+dependency phase (three command buffers per rank: produce → RS → AG).
+
+Measured at the decode config (hidden=8192 = 32 KiB tensor, 80 layers,
+2 reduces/layer, 8 tokens; µs/reduce median; `--allreduce both`, one
+run per pull engine; gate PASS on every schedule/engine combination,
+including blit/kernel reads at non-zero slice offsets):
+
+| `--pull` | schedule | fabric B/reduce/rank | chain | event | cpu |
+|---|---|---|---|---|---|
+| blit | naive | 98304 | **737** | 3226 | 3064 |
+| blit | twoshot | 49152 | 4180 | 6475 | 6097 |
+| kernel | naive | 98304 | **623** | 3294 | 3032 |
+| kernel | twoshot | 49152 | 4022 | 6643 | 5435 |
+| fused | naive | 98304 | **602** | 3198 | 3542 |
+| fused | twoshot | 49152 | 3890 | 6603 | 6868 |
+
+**2-shot is slower per reduce at every sync mode and pull engine —
+~5–6× in the winning `chain` mode, ~2× in `event`/`cpu` — despite
+moving half the bytes.** The naive baselines reproduce
+the pull-mode follow-up numbers above, so the regression is entirely
+the schedule.
+
+Is it bytes or ops? Sweep the tensor size (blit, chain µs/reduce;
+`raw/2026-09-12-tpsim-twoshot-blit{,-1mib,-4mib}.json`):
+
+| tensor | naive B/rank | naive | twoshot B/rank | twoshot | naive/twoshot |
+|---|---|---|---|---|---|
+| 32 KiB | 96 KiB | 737 | 48 KiB | 4180 | 5.7× faster |
+| 1 MiB | 3 MiB | 1273 | 1.5 MiB | 4584 | 3.6× faster |
+| 4 MiB | 12 MiB | 2517 | 6 MiB | 5900 | 2.3× faster |
+
+Closing the gap but never crossing over out to 4 MiB tensors. The
+marginal cost per MiB is *higher* for 2-shot (~300 µs/MiB vs ~140–240
+µs/MiB for naive), which kills the usual "crossover at large
+messages" argument. The consistent explanation is the model this
+driver has shown all along: **remote-view pulls cost a per-op
+serialized charge (hundreds of µs) that is nearly size-independent
+out to megabyte scale** (see the `pull-contention` section above and
+the copy-paths latency floor). 2-shot doubles
+the op count (6 vs 3 per rank per reduce) and adds a second
+GPU-side dependency hop, so it pays two per-op taxes to save a byte
+charge that this fabric barely bills.
+
+Practical implications:
+
+1. **Do not port 2-shot/all-reduce-decomposition schedules (NCCL-style
+   reduce-scatter + all-gather, double binary tree, etc.) to this
+   driver** — they all trade bytes for op count, and op count is what
+   this driver charges for. This extends conclusion 3: minimize the
+   number of remote ops per token, per *schedule*, not just per
+   buffer.
+2. A schedule that wins here must **cut ops**: fewer, fatter reduces
+   (token-batching already does this), single-kernel fused pulls
+   (verified equal here, fewer encodes), or TP=2 on one Duo where the
+   op fan-in halves again.
+3. The correctness result stands: the 2-shot machinery (shard-slice
+   remote reads at non-zero offsets, per-shard views, three-phase event
+   chain) is **functionally correct on this driver** — every gate
+   passed, blit and kernel included — so it is available for
+   byte-bound workloads (e.g. moving very large activations on
+   a dedicated stream) even though it loses for decode.
+
+Raw: `raw/2026-09-12-tpsim-twoshot-{fused,blit,kernel}.json` (decode
+config, `--allreduce both --sync both`) and
+`raw/2026-09-12-tpsim-twoshot-blit-{1mib,4mib}.json` (size sweep,
+`--layers 2..4 --tokens 2..3`). Repro:
+`tools/.build/release/tp-sim --allreduce both --pull fused`.
